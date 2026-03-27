@@ -15,7 +15,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
 
 
-    public enum IntakeState {Disabled, Intaking, Jammed, Reversing}
+    public enum IntakeState {Disabled, Intaking, Reversing, IntakingUnJamming, OuttakingUnJamming}
     IntakeState intakeState = IntakeState.Disabled;
 
 
@@ -58,18 +58,24 @@ public class IntakeSubsystem extends SubsystemBase {
                 robot.intakeMotor.setPower(rConstants.IntakeConstants.intakingSpeed);
                 break;
 
-            case Jammed:
-                intakeState = IntakeState.Reversing;
-                break;
-
+            case IntakingUnJamming:
             case Reversing:
                 robot.intakeMotor.setPower(rConstants.IntakeConstants.reversingSpeed);
                 break;
+
+            case OuttakingUnJamming:
+                robot.intakeMotor.setPower(rConstants.IntakeConstants.reversingSpeed * -1);
+                break;
         }
     }
-    private void JammingControl(){
 
-        // Jam detection - only while intaking
+
+
+
+
+
+    private void JammingControl(){
+        // Jam Detection - While Intaking
         if(intakeState == IntakeState.Intaking){
             boolean currentSpikeDetected = robot.intakeMotor.isOverCurrent();
             boolean velocityDropDetected = Math.abs(robot.intakeMotor.getVelocity()) <= rConstants.IntakeConstants.jamVelocityAlert;
@@ -79,30 +85,60 @@ public class IntakeSubsystem extends SubsystemBase {
                     intakeJamTimer.reset();
                     jamTimerRunning = true;
                 } else if(intakeJamTimer.milliseconds() >= rConstants.IntakeConstants.jamTimeConfirmation){
-                    intakeState = IntakeState.Jammed;
+                    intakeState = IntakeState.IntakingUnJamming;
                     jamTimerRunning = false;
                 }
             } else {
                 jamTimerRunning = false;
             }
         }
-
-        // Unjam detection - while reversing
-        if(intakeState == IntakeState.Reversing){
+        // IntakingUnJamming Condition
+        if(intakeState == IntakeState.IntakingUnJamming){
             boolean currentNormal = !robot.intakeMotor.isOverCurrent();
             boolean velocityNormal = Math.abs(robot.intakeMotor.getVelocity()) > rConstants.IntakeConstants.jamVelocityAlert;
 
             if(currentNormal && velocityNormal){
-                if(!unjamTimerRunning){
-                    intakeUnjamTimer.reset();
-                    unjamTimerRunning = true;
-                } else if(intakeUnjamTimer.milliseconds() >= rConstants.IntakeConstants.jamTimeConfirmation){
+                if(!unjamTimerRunning){ intakeUnjamTimer.reset(); unjamTimerRunning = true; }
+                else if(intakeUnjamTimer.milliseconds() >= rConstants.IntakeConstants.jamTimeConfirmation){
                     intakeState = IntakeState.Intaking;
                     unjamTimerRunning = false;
                 }
+            } else { unjamTimerRunning = false; }
+        }
+
+
+
+
+
+        // Jam Detection - While Outtaking
+        if(intakeState == IntakeState.Reversing){
+            boolean currentSpikeDetected = robot.intakeMotor.isOverCurrent();
+            boolean velocityDropDetected = Math.abs(robot.intakeMotor.getVelocity()) <= rConstants.IntakeConstants.jamVelocityAlert;
+
+            if(currentSpikeDetected && velocityDropDetected){
+                if(!jamTimerRunning){
+                    intakeJamTimer.reset();
+                    jamTimerRunning = true;
+                } else if(intakeJamTimer.milliseconds() >= rConstants.IntakeConstants.jamTimeConfirmation){
+                    intakeState = IntakeState.OuttakingUnJamming;
+                    jamTimerRunning = false;
+                }
             } else {
-                unjamTimerRunning = false;
+                jamTimerRunning = false;
             }
+        }
+        // OuttakingUnJamming Condition
+        if(intakeState == IntakeState.OuttakingUnJamming){
+            boolean currentNormal = !robot.intakeMotor.isOverCurrent();
+            boolean velocityNormal = Math.abs(robot.intakeMotor.getVelocity()) > rConstants.IntakeConstants.jamVelocityAlert;
+
+            if(currentNormal && velocityNormal){
+                if(!unjamTimerRunning){ intakeUnjamTimer.reset(); unjamTimerRunning = true; }
+                else if(intakeUnjamTimer.milliseconds() >= rConstants.IntakeConstants.jamTimeConfirmation){
+                    intakeState = IntakeState.Reversing;
+                    unjamTimerRunning = false;
+                }
+            } else { unjamTimerRunning = false; }
         }
     }
 

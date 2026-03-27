@@ -85,6 +85,7 @@ public class rConstants {
     public static class SpindexerConstants{
         public static String leftSpindexerServoName = "leftSpindexerServo";
         public static String rightSpindexerServoName = "rightSpindexerServo";
+        public static String spindexerEncoderName = rConstants.DriveTrainConstants.frontLeftMotorName;
 
 
 
@@ -93,6 +94,13 @@ public class rConstants {
         public static double intakingPosition = 0.973;
         public static double lineUpForCyclePosition = 0.0;
         public static double cycleSpindexerPosition = 0.0;
+
+
+
+
+        public static double spindexerVelocityCheckDelay = 120;
+        public static double spindexerVelocityCheckThreshold = 120;
+        public static double spindexerVelocityZeroThreshold = 500;
     }
 
 
@@ -110,6 +118,7 @@ public class rConstants {
         public static GamepadKeys.Button cycleDriveModes = GamepadKeys.Button.DPAD_DOWN;
         public static GamepadKeys.Button enableIntake = GamepadKeys.Button.RIGHT_STICK_BUTTON;
         public static GamepadKeys.Button reverseIntake = GamepadKeys.Button.LEFT_STICK_BUTTON;
+        public static GamepadKeys.Button shootArtefacts = GamepadKeys.Button.A;
     }
 
 }

@@ -1,10 +1,12 @@
 package org.firstinspires.ftc.teamcode.opmodes.teleop;
 
+import com.arcrobotics.ftclib.command.CommandScheduler;
 import com.arcrobotics.ftclib.gamepad.ButtonReader;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+import org.firstinspires.ftc.teamcode.commands.ShootArtefactsCMD;
 import org.firstinspires.ftc.teamcode.subsystems.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.SpindexerSubsystem;
 import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
@@ -26,6 +28,12 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
 
+    ShootArtefactsCMD shootArtefactsCMD;
+
+
+
+
+
     private RobotHardwareMap robot;
     //private Follower follower;
 
@@ -35,6 +43,7 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     private ButtonReader cycleDriveModesButtonReader;
     private ButtonReader enableIntakeButtonReader, reverseIntakeButtonReader;
+    private ButtonReader shootArtefactsButtonReader;
 
 
 
@@ -60,6 +69,12 @@ public class WorldsRebuildTeleOp extends OpMode {
         intakeSubsystem = new IntakeSubsystem(robot);
         spindexerSubsystem = new SpindexerSubsystem(robot);
         //headingPDController = new PDController(rConstants.DriveTrainConstants.headingKp, rConstants.DriveTrainConstants.headingKd);
+
+
+
+
+
+        shootArtefactsCMD = new ShootArtefactsCMD(spindexerSubsystem);
 
 
 
@@ -184,7 +199,9 @@ public class WorldsRebuildTeleOp extends OpMode {
         enableIntakeButtonReader.readValue();
         reverseIntakeButtonReader.readValue();
 
-        if(enableIntakeButtonReader.wasJustPressed() && intakeSubsystem.getState() != IntakeSubsystem.IntakeState.Jammed){ //Intaking Control
+        if(enableIntakeButtonReader.wasJustPressed()
+                && intakeSubsystem.getState() != IntakeSubsystem.IntakeState.IntakingUnJamming
+                && intakeSubsystem.getState() != IntakeSubsystem.IntakeState.OuttakingUnJamming){ //Intaking Control
             switch(intakeSubsystem.getState()){
                 case Disabled:
                 case Reversing:
@@ -195,10 +212,14 @@ public class WorldsRebuildTeleOp extends OpMode {
                     intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled);
                     break;
             }
+
+            RumbleGamePad(150);
         }
 
 
-        if(reverseIntakeButtonReader.wasJustPressed() && intakeSubsystem.getState() != IntakeSubsystem.IntakeState.Jammed){ // Reversing Control
+        if(reverseIntakeButtonReader.wasJustPressed()
+                && intakeSubsystem.getState() != IntakeSubsystem.IntakeState.IntakingUnJamming
+                && intakeSubsystem.getState() != IntakeSubsystem.IntakeState.OuttakingUnJamming){ // Reversing Control
             switch(intakeSubsystem.getState()){
                 case Disabled:
                 case Intaking:
@@ -209,6 +230,8 @@ public class WorldsRebuildTeleOp extends OpMode {
                     intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled);
                     break;
             }
+
+            RumbleGamePad(150);
         }
         //----------end-----------//
 
@@ -218,8 +241,22 @@ public class WorldsRebuildTeleOp extends OpMode {
 
         //-----------Cycling Drive Modes-----------
         cycleDriveModesButtonReader.readValue();
-        if(cycleDriveModesButtonReader.wasJustPressed() && rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric) { rConstants.Enums.selectedDriveMode = rConstants.Enums.DriveMode.FieldCentric; }
-        else { rConstants.Enums.selectedDriveMode = rConstants.Enums.DriveMode.FieldCentric; }
+        if(cycleDriveModesButtonReader.wasJustPressed() && rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric) { rConstants.Enums.selectedDriveMode = rConstants.Enums.DriveMode.FieldCentric; RumbleGamePad(200); }
+        else if(cycleDriveModesButtonReader.wasJustPressed() && rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.FieldCentric) { rConstants.Enums.selectedDriveMode = rConstants.Enums.DriveMode.RobotCentric; RumbleGamePad(200); }
+        //----------end----------//
+
+
+
+
+
+        //----------Cycling Artefacts----------//
+        shootArtefactsButtonReader.readValue();
+        if(shootArtefactsButtonReader.wasJustPressed()) {
+            shootArtefactsCMD = new ShootArtefactsCMD(spindexerSubsystem);
+            CommandScheduler.getInstance().schedule(shootArtefactsCMD);
+
+            RumbleGamePad(200);
+        }
         //----------end----------//
     }
     private void InitializeGamePadControls(){
@@ -229,6 +266,7 @@ public class WorldsRebuildTeleOp extends OpMode {
         cycleDriveModesButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.cycleDriveModes);
         enableIntakeButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.enableIntake);
         reverseIntakeButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.reverseIntake);
+        shootArtefactsButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.shootArtefacts);
     }
 
 
@@ -238,6 +276,8 @@ public class WorldsRebuildTeleOp extends OpMode {
     private void BackgroundOperations(){
         intakeSubsystem.periodic();
         spindexerSubsystem.periodic();
+
+        CommandScheduler.getInstance().run();
     }
 
 
@@ -263,8 +303,18 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
         telemetry.addData("Current Spindexer State: ", spindexerSubsystem.getSpindexerState());
+        telemetry.addData("Spindexer Position Reached: ", spindexerSubsystem.spindexerPositionReached());
+        telemetry.addData("Spindexer Velocity: ", "%.1f", spindexerSubsystem.getVelocity());
 
         telemetry.update();
+    }
+
+
+
+
+
+    private void RumbleGamePad(int duration){
+        gamepad1.rumble(1.0, 1.0, duration);
     }
 
 

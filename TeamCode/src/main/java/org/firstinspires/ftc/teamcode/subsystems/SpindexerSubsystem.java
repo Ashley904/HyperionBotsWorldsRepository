@@ -1,13 +1,26 @@
 package org.firstinspires.ftc.teamcode.subsystems;
 
 import com.arcrobotics.ftclib.command.SubsystemBase;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
 import org.firstinspires.ftc.teamcode.util.rConstants;
 
 public class SpindexerSubsystem extends SubsystemBase{
-    public enum SpindexerState {Intaking, LinedUpForCycle, CyclingArtefacts}
+    public enum SpindexerState {Intaking, LineUpForCycle, CyclingArtefacts}
     public static SpindexerState currentSpindexerState = SpindexerState.Intaking;
+
+
+
+
+
+    private final ElapsedTime spindexerStartDelayTimer = new ElapsedTime();
+    private final ElapsedTime spindexerVelocityTimer = new ElapsedTime();
+
+    private boolean spindexerStartDelayActive = false;
+    private boolean spindexerVelocityIsZeroed = false;
+    private boolean spindexerVelocityTimerRunning = false;
+
 
 
 
@@ -30,20 +43,21 @@ public class SpindexerSubsystem extends SubsystemBase{
     @Override
     public void periodic(){
         //Calling Functions
-        SpindexerPositionControl();
+        spindexerPositionControl();
+        updateSpindexerVelocityZeroedStatus();
     }
 
 
 
 
 
-    private void SpindexerPositionControl(){
+    private void spindexerPositionControl(){
         switch(currentSpindexerState){
             case Intaking:
                 setSpindexerPosition(rConstants.SpindexerConstants.intakingPosition);
                 break;
 
-            case LinedUpForCycle:
+            case LineUpForCycle:
                 setSpindexerPosition(rConstants.SpindexerConstants.lineUpForCyclePosition);
                 break;
 
@@ -62,7 +76,36 @@ public class SpindexerSubsystem extends SubsystemBase{
 
 
 
-    //Helpers
+    // Helpers
     public SpindexerState getSpindexerState() { return currentSpindexerState; }
-    public void setSpindexerState(SpindexerState state) { currentSpindexerState = state;}
+    public void setSpindexerState(SpindexerState state) { currentSpindexerState = state; startSpindexerCheck(); }
+    public double getVelocity() { return robot.spindexerEncoder.getVelocity(); }
+
+
+
+
+
+
+
+    // Spindexer Velocity Checks
+    private void startSpindexerCheck(){
+        spindexerStartDelayTimer.reset();
+        spindexerStartDelayActive = true;
+        spindexerVelocityIsZeroed = false;
+        spindexerVelocityTimerRunning = false;
+    }
+    private void updateSpindexerVelocityZeroedStatus(){
+        if(!spindexerStartDelayActive || spindexerStartDelayTimer.milliseconds() < rConstants.SpindexerConstants.spindexerVelocityCheckDelay) return; //Velocity Check Delay
+
+        if(robot.spindexerEncoder.getVelocity() <= rConstants.SpindexerConstants.spindexerVelocityZeroThreshold){
+            if(!spindexerVelocityTimerRunning){
+                spindexerVelocityTimer.reset();
+                spindexerVelocityTimerRunning = true;
+            } else if(spindexerVelocityTimer.milliseconds() >= 100) { spindexerVelocityIsZeroed = true; }
+        }else {
+            spindexerVelocityTimerRunning = false;
+            spindexerVelocityIsZeroed = false;
+        }
+    }
+    public boolean spindexerPositionReached() { return spindexerVelocityIsZeroed; }
 }

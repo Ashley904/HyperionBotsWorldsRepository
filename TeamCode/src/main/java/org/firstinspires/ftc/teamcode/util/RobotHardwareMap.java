@@ -16,6 +16,7 @@ public class RobotHardwareMap {
 
 
     public Servo leftSpindexerServo, rightSpindexerServo;
+    public DcMotorEx spindexerEncoder;
 
 
 
@@ -23,8 +24,8 @@ public class RobotHardwareMap {
 
     public void init(HardwareMap hardwareMap){
         initializeIntake(hardwareMap);
+        initializeSpindexer(hardwareMap);
         initializeDriveTrain(hardwareMap);
-        initializeSpindexerServos(hardwareMap);
     }
 
 
@@ -61,7 +62,9 @@ public class RobotHardwareMap {
 
 
 
-    public void initializeSpindexerServos(HardwareMap hardwareMap){
+    public void initializeSpindexer(HardwareMap hardwareMap){
+        spindexerEncoder = hardwareMap.get(DcMotorEx.class, rConstants.SpindexerConstants.spindexerEncoderName);
+
         leftSpindexerServo = hardwareMap.get(Servo.class, rConstants.SpindexerConstants.leftSpindexerServoName);
         rightSpindexerServo = hardwareMap.get(Servo.class, rConstants.SpindexerConstants.rightSpindexerServoName);
     }
