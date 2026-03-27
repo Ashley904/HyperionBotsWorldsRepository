@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.util;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
 
@@ -14,9 +15,16 @@ public class RobotHardwareMap {
 
 
 
+    public Servo leftSpindexerServo, rightSpindexerServo;
+
+
+
+
+
     public void init(HardwareMap hardwareMap){
         initializeIntake(hardwareMap);
         initializeDriveTrain(hardwareMap);
+        initializeSpindexerServos(hardwareMap);
     }
 
 
@@ -47,5 +55,14 @@ public class RobotHardwareMap {
         intakeMotor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         intakeMotor.setMode(DcMotorEx.RunMode.RUN_USING_ENCODER);
         intakeMotor.setCurrentAlert(rConstants.IntakeConstants.currentAlert, CurrentUnit.AMPS);
+    }
+
+
+
+
+
+    public void initializeSpindexerServos(HardwareMap hardwareMap){
+        leftSpindexerServo = hardwareMap.get(Servo.class, rConstants.SpindexerConstants.leftSpindexerServoName);
+        rightSpindexerServo = hardwareMap.get(Servo.class, rConstants.SpindexerConstants.rightSpindexerServoName);
     }
 }

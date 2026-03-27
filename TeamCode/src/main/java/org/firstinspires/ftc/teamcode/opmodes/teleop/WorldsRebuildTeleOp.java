@@ -2,32 +2,32 @@ package org.firstinspires.ftc.teamcode.opmodes.teleop;
 
 import com.arcrobotics.ftclib.gamepad.ButtonReader;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
-import com.pedropathing.follower.Follower;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import org.firstinspires.ftc.teamcode.controllers.PDController;
 import org.firstinspires.ftc.teamcode.subsystems.IntakeSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.SpindexerSubsystem;
 import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
 
 import org.firstinspires.ftc.teamcode.util.rConstants;
 
 @TeleOp(name="Worlds Rebuild TeleOp", group="TeleOp")
 public class WorldsRebuildTeleOp extends OpMode {
-    PDController headingPDController;
+    //PDController headingPDController;
 
 
 
 
 
     IntakeSubsystem intakeSubsystem;
+    SpindexerSubsystem spindexerSubsystem;
 
 
 
 
 
     private RobotHardwareMap robot;
-    private Follower follower;
+    //private Follower follower;
 
 
 
@@ -58,7 +58,8 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
         intakeSubsystem = new IntakeSubsystem(robot);
-        headingPDController = new PDController(rConstants.DriveTrainConstants.headingKp, rConstants.DriveTrainConstants.headingKd);
+        spindexerSubsystem = new SpindexerSubsystem(robot);
+        //headingPDController = new PDController(rConstants.DriveTrainConstants.headingKp, rConstants.DriveTrainConstants.headingKd);
 
 
 
@@ -71,7 +72,27 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
 
+        intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled);
+        spindexerSubsystem.setSpindexerState(SpindexerSubsystem.SpindexerState.Intaking);
+
+
+
+
+
         telemetry.addData("Status: ", "Initialization Complete...");
+        telemetry.update();
+    }
+
+
+
+
+
+    @Override
+    public void init_loop(){
+        intakeSubsystem.periodic();
+        spindexerSubsystem.periodic();
+
+        telemetry.addData("Status: ", "Waiting for start...");
         telemetry.update();
     }
 
@@ -100,10 +121,11 @@ public class WorldsRebuildTeleOp extends OpMode {
 
         double y = -rConstants.GamePadControls.gamepad1EX.getLeftY() * adjustedDrivingSpeed;
         double x = rConstants.GamePadControls.gamepad1EX.getLeftX() * adjustedDrivingSpeed;
-        double rx = rConstants.GamePadControls.gamepad1EX.getRightX() * adjustedDrivingSpeed;
+        double rx = rConstants.GamePadControls.gamepad1EX.getRightX() * adjustedDrivingSpeed * -1;
         rx = rx * 1.1;
 
 
+        /*
         double rotatedX = x * Math.cos(-getHeading()) - y * Math.sin(-getHeading());
         double rotatedY = x * Math.sin(-getHeading()) + y * Math.cos(-getHeading());
         rotatedX = rotatedX * 1.1;
@@ -117,18 +139,20 @@ public class WorldsRebuildTeleOp extends OpMode {
             targetHeading = getHeading();
         } else { headingCorrectionEnabled = true; }
 
-        if(headingCorrectionEnabled) { rx = headingPDController.calculate(getHeading(), targetHeading, -0.75, 0.75); }
+        //if(headingCorrectionEnabled) { rx = headingPDController.calculate(getHeading(), targetHeading, -0.75, 0.75); }
         //----------end-----------//
 
+         */
 
 
 
 
 
-        double frontLeftMotorPower = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y + x + rx) : (rotatedY + rotatedX + rx);
-        double backLeftMotorPower = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y - x + rx) : (rotatedY - rotatedX + rx);
-        double frontRightMotorPower = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y - x - rx) : (rotatedY - rotatedX - rx);
-        double backRightMotorPower = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y + x - rx) : (rotatedY + rotatedX - rx);
+
+        double frontLeftMotorPower = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y + x + rx) : (y + x + rx);
+        double backLeftMotorPower = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y - x + rx) : (y - x + rx);
+        double frontRightMotorPower = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y - x - rx) : (y - x - rx);
+        double backRightMotorPower = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y + x - rx) : (y + x - rx);
 
 
         double maxPower = Math.max(
@@ -160,26 +184,31 @@ public class WorldsRebuildTeleOp extends OpMode {
         enableIntakeButtonReader.readValue();
         reverseIntakeButtonReader.readValue();
 
-        if(intakeSubsystem.getState() != IntakeSubsystem.IntakeState.Jammed){
-
-            // Toggle intake
-            if(enableIntakeButtonReader.wasJustPressed()){
-                if(intakeSubsystem.getState() == IntakeSubsystem.IntakeState.Intaking){
-                    intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled);
-                } else {
+        if(enableIntakeButtonReader.wasJustPressed() && intakeSubsystem.getState() != IntakeSubsystem.IntakeState.Jammed){ //Intaking Control
+            switch(intakeSubsystem.getState()){
+                case Disabled:
+                case Reversing:
                     intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking);
-                }
-            }
+                    break;
 
-            // Toggle reverse
-            if(reverseIntakeButtonReader.wasJustPressed()){
-                if(intakeSubsystem.getState() == IntakeSubsystem.IntakeState.Reversing){
+                case Intaking:
                     intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled);
-                } else {
-                    intakeSubsystem.setState(IntakeSubsystem.IntakeState.Reversing);
-                }
+                    break;
             }
+        }
 
+
+        if(reverseIntakeButtonReader.wasJustPressed() && intakeSubsystem.getState() != IntakeSubsystem.IntakeState.Jammed){ // Reversing Control
+            switch(intakeSubsystem.getState()){
+                case Disabled:
+                case Intaking:
+                    intakeSubsystem.setState(IntakeSubsystem.IntakeState.Reversing);
+                    break;
+
+                case Reversing:
+                    intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled);
+                    break;
+            }
         }
         //----------end-----------//
 
@@ -208,6 +237,7 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     private void BackgroundOperations(){
         intakeSubsystem.periodic();
+        spindexerSubsystem.periodic();
     }
 
 
@@ -218,15 +248,21 @@ public class WorldsRebuildTeleOp extends OpMode {
     private void TelemetryUpdating(){
         telemetry.addData("Selected Drive Mode: ", rConstants.Enums.selectedDriveMode);
 
+        /*
         telemetry.addData("X Pose: ",  "%.1f" , getXPose());
         telemetry.addData("Y Pose: ",  "%.1f" , getYPose());
         telemetry.addData("X Velocity: ", "%.2f" , getXVelocity());
         telemetry.addData("Y Velocity: ", "%.2f" , getYVelocity());
         telemetry.addData("Current Heading: ", "%.1f" , Math.toDegrees(getHeading()));
 
+         */
+
         telemetry.addData("Intake State: ", intakeSubsystem.getState());
         telemetry.addData("Intake Velocity: ", "%.0f" , intakeSubsystem.getIntakeVelocity());
         telemetry.addData("Intake Current Draw: ", "%.1f",  intakeSubsystem.getIntakeCurrentDraw());
+
+
+        telemetry.addData("Current Spindexer State: ", spindexerSubsystem.getSpindexerState());
 
         telemetry.update();
     }
@@ -236,10 +272,13 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
     //Helpers
+    /*
     private double getHeading() { return follower.getPose().getHeading(); }
     private double getXPose() { return follower.getPose().getX(); }
     private double getYPose() { return follower.getPose().getY(); }
 
     private double getXVelocity() { return follower.getVelocity().getXComponent(); }
     private double getYVelocity() { return follower.getVelocity().getYComponent(); }
+
+     */
 }

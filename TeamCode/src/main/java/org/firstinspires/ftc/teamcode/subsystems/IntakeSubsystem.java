@@ -42,7 +42,6 @@ public class IntakeSubsystem extends SubsystemBase {
     @Override
     public void periodic(){
         IntakeSpeedControl();
-        JammingControl();
     }
 
 

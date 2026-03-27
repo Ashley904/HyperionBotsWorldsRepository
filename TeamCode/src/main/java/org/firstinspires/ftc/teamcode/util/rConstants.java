@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.util;
 
+import com.acmerobotics.dashboard.config.Config;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 
@@ -13,6 +14,7 @@ public class rConstants {
 
 
 
+    @Config
     public static class DriveTrainConstants{
         public static String frontLeftMotorName = "FL";
         public static String backLeftMotorName = "BL";
@@ -32,7 +34,7 @@ public class rConstants {
 
 
 
-        public static Boolean floatModeEnabled = true;
+        public static Boolean floatModeEnabled = false;
 
 
 
@@ -44,7 +46,7 @@ public class rConstants {
 
 
 
-        public static double driveCubicTerm=0.0, driveLinearTerm=0.0;
+        public static double driveCubicTerm=0.5, driveLinearTerm=0.4;
         public static double maximumDriveTrainSpeed=1.0, minimumDriveTrainSpeed=0.35;
     }
 
@@ -52,6 +54,7 @@ public class rConstants {
 
 
 
+    @Config
     public static class IntakeConstants{
         public static String intakeMotorName = "intakeMotor";
         public static Boolean intakeInverted = false;
@@ -78,6 +81,25 @@ public class rConstants {
 
 
 
+    @Config
+    public static class SpindexerConstants{
+        public static String leftSpindexerServoName = "leftSpindexerServo";
+        public static String rightSpindexerServoName = "rightSpindexerServo";
+
+
+
+
+
+        public static double intakingPosition = 0.973;
+        public static double lineUpForCyclePosition = 0.0;
+        public static double cycleSpindexerPosition = 0.0;
+    }
+
+
+
+
+
+    @Config
     public static class GamePadControls{
         public static GamepadEx gamepad1EX, gamepad2EX;
 
