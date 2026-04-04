@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.util;
 
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
@@ -22,8 +23,33 @@ public class RobotHardwareMap {
 
 
 
+    public DcMotorEx leftFlyWheelMotor, rightFlyWheelMotor;
+    public Servo hoodServo;
+
+
+
+
+
+    public Servo leftTransferServo;
+    public Servo rightTransferServo;
+
+
+
+
+
+    public HardwareMap hardwareMap;
+
+
+
+
+
     public void init(HardwareMap hardwareMap){
+        this.hardwareMap = hardwareMap;
+
+
         initializeIntake(hardwareMap);
+        initializeShooter(hardwareMap);
+        initializeTransfer(hardwareMap);
         initializeSpindexer(hardwareMap);
         initializeDriveTrain(hardwareMap);
     }
@@ -62,10 +88,33 @@ public class RobotHardwareMap {
 
 
 
-    public void initializeSpindexer(HardwareMap hardwareMap){
+    private void initializeSpindexer(HardwareMap hardwareMap){
         spindexerEncoder = hardwareMap.get(DcMotorEx.class, rConstants.SpindexerConstants.spindexerEncoderName);
+        spindexerEncoder.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+        spindexerEncoder.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
 
         leftSpindexerServo = hardwareMap.get(Servo.class, rConstants.SpindexerConstants.leftSpindexerServoName);
         rightSpindexerServo = hardwareMap.get(Servo.class, rConstants.SpindexerConstants.rightSpindexerServoName);
+    }
+
+
+
+
+
+    private void initializeShooter(HardwareMap hardwareMap){
+        leftFlyWheelMotor = getMotor(hardwareMap, rConstants.ShooterConstants.leftFlyWheelMotorName, rConstants.ShooterConstants.leftFlyWheelMotorInverted, rConstants.ShooterConstants.floatModeEnabled);
+        rightFlyWheelMotor = getMotor(hardwareMap, rConstants.ShooterConstants.rightFlyWheelMotorName, rConstants.ShooterConstants.rightFlyWheelMotorInverted, rConstants.ShooterConstants.floatModeEnabled);
+
+        hoodServo = hardwareMap.get(Servo.class, rConstants.ShooterConstants.hoodServoName);
+    }
+
+
+
+
+
+    private void initializeTransfer(HardwareMap hardwareMap){
+        leftTransferServo = hardwareMap.get(Servo.class, rConstants.TransferConstants.leftTransferServoName);
+        rightTransferServo = hardwareMap.get(Servo.class, rConstants.TransferConstants.rightTransferServoName);
+        rightTransferServo.setDirection(Servo.Direction.REVERSE);
     }
 }

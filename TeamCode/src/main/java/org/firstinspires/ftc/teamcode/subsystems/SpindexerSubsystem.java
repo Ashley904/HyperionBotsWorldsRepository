@@ -7,7 +7,7 @@ import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
 import org.firstinspires.ftc.teamcode.util.rConstants;
 
 public class SpindexerSubsystem extends SubsystemBase{
-    public enum SpindexerState {Intaking, LineUpForCycle, CyclingArtefacts}
+    public enum SpindexerState {Intaking, Shooting}
     public static SpindexerState currentSpindexerState = SpindexerState.Intaking;
 
 
@@ -17,9 +17,15 @@ public class SpindexerSubsystem extends SubsystemBase{
     private final ElapsedTime spindexerStartDelayTimer = new ElapsedTime();
     private final ElapsedTime spindexerVelocityTimer = new ElapsedTime();
 
+
+
+
+
     private boolean spindexerStartDelayActive = false;
     private boolean spindexerVelocityIsZeroed = false;
     private boolean spindexerVelocityTimerRunning = false;
+    private boolean hasPeaked = false;
+    private double peakVelocity = 0;
 
 
 
@@ -27,6 +33,19 @@ public class SpindexerSubsystem extends SubsystemBase{
 
 
     private final RobotHardwareMap robot;
+
+
+
+
+    private double previousSpindexerPosition = 0.0;
+    private double cachedEncoderVelocity, cachedEncoderPosition;
+
+
+
+
+    private double targetEncoderPosition = 0;
+    private boolean positionCheckActive = false;
+    private boolean positionReached = false;
 
 
 
@@ -42,35 +61,27 @@ public class SpindexerSubsystem extends SubsystemBase{
 
     @Override
     public void periodic(){
+        cachedEncoderVelocity = robot.spindexerEncoder.getVelocity();
+        cachedEncoderVelocity = robot.spindexerEncoder.getCurrentPosition();
+
         //Calling Functions
-        spindexerPositionControl();
         updateSpindexerVelocityZeroedStatus();
+        updatePositionCheck();
     }
 
 
 
 
 
-    private void spindexerPositionControl(){
-        switch(currentSpindexerState){
-            case Intaking:
-                setSpindexerPosition(rConstants.SpindexerConstants.intakingPosition);
-                break;
+    public void setSpindexerPosition(double spindexerPosition) {
+        robot.leftSpindexerServo.setPosition(spindexerPosition); robot.rightSpindexerServo.setPosition(spindexerPosition);
 
-            case LineUpForCycle:
-                setSpindexerPosition(rConstants.SpindexerConstants.lineUpForCyclePosition);
-                break;
-
-            case CyclingArtefacts:
-                setSpindexerPosition(rConstants.SpindexerConstants.cycleSpindexerPosition);
+        if(spindexerPosition != previousSpindexerPosition){
+            previousSpindexerPosition = spindexerPosition;
+            startSpindexerCheck();
         }
     }
-
-
-
-
-
-    private void setSpindexerPosition(double position) { robot.leftSpindexerServo.setPosition(position); robot.rightSpindexerServo.setPosition(position); }
+    public void setSpindexerState(SpindexerState state) { currentSpindexerState = state; }
 
 
 
@@ -78,8 +89,8 @@ public class SpindexerSubsystem extends SubsystemBase{
 
     // Helpers
     public SpindexerState getSpindexerState() { return currentSpindexerState; }
-    public void setSpindexerState(SpindexerState state) { currentSpindexerState = state; startSpindexerCheck(); }
-    public double getVelocity() { return robot.spindexerEncoder.getVelocity(); }
+    public double getVelocity() { return cachedEncoderVelocity; }
+    public double getPosition() { return cachedEncoderPosition; }
 
 
 
@@ -92,20 +103,43 @@ public class SpindexerSubsystem extends SubsystemBase{
         spindexerStartDelayTimer.reset();
         spindexerStartDelayActive = true;
         spindexerVelocityIsZeroed = false;
-        spindexerVelocityTimerRunning = false;
+        hasPeaked = false;
+        peakVelocity = 0;
     }
-    private void updateSpindexerVelocityZeroedStatus(){
-        if(!spindexerStartDelayActive || spindexerStartDelayTimer.milliseconds() < rConstants.SpindexerConstants.spindexerVelocityCheckDelay) return; //Velocity Check Delay
 
-        if(robot.spindexerEncoder.getVelocity() <= rConstants.SpindexerConstants.spindexerVelocityZeroThreshold){
-            if(!spindexerVelocityTimerRunning){
-                spindexerVelocityTimer.reset();
-                spindexerVelocityTimerRunning = true;
-            } else if(spindexerVelocityTimer.milliseconds() >= 100) { spindexerVelocityIsZeroed = true; }
-        }else {
-            spindexerVelocityTimerRunning = false;
-            spindexerVelocityIsZeroed = false;
+    private void updateSpindexerVelocityZeroedStatus(){
+        if(!spindexerStartDelayActive || spindexerStartDelayTimer.milliseconds() < rConstants.SpindexerConstants.spindexerVelocityCheckDelay) return;
+
+        double currentVelocity = Math.abs(cachedEncoderVelocity);
+
+        if(currentVelocity > peakVelocity){
+            peakVelocity = currentVelocity;
+        } else if(peakVelocity > rConstants.SpindexerConstants.minimumPeakVelocity
+                && currentVelocity < peakVelocity * rConstants.SpindexerConstants.decelerationTriggerRatio){
+            spindexerVelocityIsZeroed = true;
         }
     }
     public boolean spindexerPositionReached() { return spindexerVelocityIsZeroed; }
+
+
+
+
+
+    // Positional Spindexer Position Checking
+    public void startPositionCheck(int positionIndex) {
+        targetEncoderPosition = rConstants.SpindexerConstants.encoderShootingPositions[positionIndex];
+        positionCheckActive = true;
+        positionReached = false;
+    }
+
+    private void updatePositionCheck() {
+        if (!positionCheckActive) return;
+
+        double currentPosition = Math.abs(robot.spindexerEncoder.getCurrentPosition());
+        if (Math.abs(currentPosition - targetEncoderPosition) <= rConstants.SpindexerConstants.positionalTolerance) {
+            positionReached = true;
+            positionCheckActive = false;
+        }
+    }
+    public boolean spindexerPositionalReached() { return positionReached; }
 }

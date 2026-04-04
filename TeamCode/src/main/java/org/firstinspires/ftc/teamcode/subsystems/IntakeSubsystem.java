@@ -15,8 +15,16 @@ public class IntakeSubsystem extends SubsystemBase {
 
 
 
-    public enum IntakeState {Disabled, Intaking, Reversing, IntakingUnJamming, OuttakingUnJamming}
+    public enum IntakeState {Disabled, Intaking, Reversing, IntakingUnJamming, OuttakingUnJamming, Idling}
     IntakeState intakeState = IntakeState.Disabled;
+
+
+
+
+
+    private double cachedVelocity;
+    private double cachedCurrent;
+    private boolean cachedOverCurrent;
 
 
 
@@ -41,7 +49,12 @@ public class IntakeSubsystem extends SubsystemBase {
 
     @Override
     public void periodic(){
+        cachedVelocity = robot.intakeMotor.getVelocity();
+        cachedCurrent = robot.intakeMotor.getCurrent(CurrentUnit.AMPS);
+        cachedOverCurrent = robot.intakeMotor.isOverCurrent();
+
         IntakeSpeedControl();
+        JammingControl();
     }
 
 
@@ -66,6 +79,9 @@ public class IntakeSubsystem extends SubsystemBase {
             case OuttakingUnJamming:
                 robot.intakeMotor.setPower(rConstants.IntakeConstants.reversingSpeed * -1);
                 break;
+
+            case Idling:
+                robot.intakeMotor.setPower(rConstants.IntakeConstants.idlingSpeed);
         }
     }
 
@@ -149,6 +165,6 @@ public class IntakeSubsystem extends SubsystemBase {
     // Helper functions
     public void setState(IntakeState state) { intakeState = state; }
     public IntakeState getState() { return intakeState; }
-    public double getIntakeVelocity() { return robot.intakeMotor.getVelocity(); }
-    public double getIntakeCurrentDraw() { return robot.intakeMotor.getCurrent(CurrentUnit.AMPS); }
+    public double getIntakeVelocity() { return cachedVelocity; }
+    public double getIntakeCurrentDraw() { return cachedCurrent; }
 }

@@ -5,9 +5,34 @@ import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 
 public class rConstants {
+    @Config
     public static class Enums{
+        public enum Alliance {BLUE, RED}
+        public static Alliance selectedAlliance = Alliance.BLUE;
+
+
+
+
+
         public enum DriveMode {RobotCentric, FieldCentric}
         public static DriveMode selectedDriveMode = DriveMode.FieldCentric;
+
+
+
+
+
+        public enum ShooterState {Disabled, Accelerating, TargetReached}
+        public static ShooterState currentShooterState = ShooterState.Disabled;
+    }
+
+
+
+
+
+    @Config
+    public static class AllianceHeadingOffsets{
+        public static double blueAllianceHeadingOffset = -90;
+        public static double redAllianceHeadingOffset = 90;
     }
 
 
@@ -64,17 +89,18 @@ public class rConstants {
 
 
 
-        public static double disabledSpeed=0.0;
-        public static double intakingSpeed=1.0;
-        public static double reversingSpeed=-1.0;
+        public static double disabledSpeed = 0.0;
+        public static double intakingSpeed = 1.0;
+        public static double reversingSpeed = -1.0;
+        public static double idlingSpeed = 0.75;
 
 
 
 
 
-        public static double currentAlert = 6.5;
-        public static double jamVelocityAlert = 1000.0;
-        public static double jamTimeConfirmation=100;
+        public static double currentAlert = 6.0;
+        public static double jamVelocityAlert = 900.0;
+        public static double jamTimeConfirmation = 100;
     }
 
 
@@ -85,24 +111,96 @@ public class rConstants {
     public static class SpindexerConstants{
         public static String leftSpindexerServoName = "leftSpindexerServo";
         public static String rightSpindexerServoName = "rightSpindexerServo";
-        public static String spindexerEncoderName = rConstants.DriveTrainConstants.frontLeftMotorName;
+        public static String spindexerEncoderName = rConstants.DriveTrainConstants.frontRightMotorName;
 
 
 
 
 
-        public static double intakingPosition = 0.973;
-        public static double lineUpForCyclePosition = 0.0;
-        public static double cycleSpindexerPosition = 0.0;
+        public static double[] intakingPositions = {0.037, 0.205, 0.375};
+        public static double[] shootingPositions = {0.12, 0.295, 0.465};
+        public static double[] encoderShootingPositions = {1335, 4150, 6870};
 
 
 
 
-        public static double spindexerVelocityCheckDelay = 120;
-        public static double spindexerVelocityCheckThreshold = 120;
-        public static double spindexerVelocityZeroThreshold = 500;
+        public static double spindexerVelocityCheckDelay = 0;
+        public static double minimumPeakVelocity = 2000;
+        public static double decelerationTriggerRatio = 0.1;
+
+
+
+
+        public static double positionalTolerance = 2200;
     }
 
+
+
+
+
+    @Config
+    public static class ShooterConstants{
+        public static String leftFlyWheelMotorName = "leftFlyWheelMotor";
+        public static String rightFlyWheelMotorName = "rightFlyWheelMotor";
+
+
+
+
+
+        public static String hoodServoName = "hoodServo";
+
+
+
+
+
+
+        public static boolean leftFlyWheelMotorInverted = true;
+        public static boolean rightFlyWheelMotorInverted = false;
+        public static boolean floatModeEnabled=false;
+
+
+
+        public static double flyWheelKs=0.1, flyWheelKf=0.0003, flyWheelKp=0.00175;
+        public static double nominalVoltage=13.35;
+
+
+
+
+
+
+        public static double maximumFlyWheelVelocity=2600;
+        public static double velocityReachedTolerance=30.0;
+
+
+
+
+
+        public double minimumHoodPosition=0.0, maximumHoodPosition=0.0;
+    }
+
+
+
+
+
+
+    @Config
+    public static class TransferConstants{
+        public static String leftTransferServoName = "leftTransferServo";
+        public static String rightTransferServoName = "rightTransferServo";
+
+
+
+
+
+        public static double homePosition = 0.27;
+        public static double transferPosition = 0.378;
+
+
+
+
+        public static long servoRiseTime = 0;
+        public static long servoHomingTime = 50;
+    }
 
 
 
