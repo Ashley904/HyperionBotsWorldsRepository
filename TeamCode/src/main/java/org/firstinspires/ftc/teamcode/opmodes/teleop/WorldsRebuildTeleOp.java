@@ -69,7 +69,7 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
 
-    public static double targetFlyWheelVelocity = 5;
+    public static double targetFlyWheelVelocity = 2000;
     public static double targetHoodPosition = 0.0;
 
 

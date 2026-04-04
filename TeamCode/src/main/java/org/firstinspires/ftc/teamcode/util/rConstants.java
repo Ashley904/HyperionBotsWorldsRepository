@@ -131,7 +131,7 @@ public class rConstants {
 
 
 
-        public static double positionalTolerance = 3200;
+        public static double positionalTolerance = 4500;
     }
 
 
@@ -193,13 +193,13 @@ public class rConstants {
 
 
         public static double homePosition = 0.33;
-        public static double transferPosition = 0.465;
+        public static double transferPosition = 0.525;
 
 
 
 
-        public static long servoRiseTime = 0;
-        public static long servoHomingTime = 125;
+        public static long servoRiseTime = 80;
+        public static long servoHomingTime = 20;
     }
 
 
