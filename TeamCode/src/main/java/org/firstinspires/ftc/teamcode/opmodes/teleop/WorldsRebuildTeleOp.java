@@ -139,7 +139,7 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
         // Initializing SubsystemsshooterSubsystem.setHoodPosition(targetHoodPosition);
-        shooterSubsystem.setTargetVelocity(  0);
+        shooterSubsystem.setTargetVelocity( 0);
 
         CommandScheduler.getInstance().schedule(new InitializeTransferCMD(robot));
         CommandScheduler.getInstance().schedule(new InitializeSpindexerCMD(robot, spindexerSubsystem));

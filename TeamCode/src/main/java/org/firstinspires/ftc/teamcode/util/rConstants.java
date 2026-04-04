@@ -117,9 +117,9 @@ public class rConstants {
 
 
 
-        public static double[] intakingPositions = {0.037, 0.205, 0.375};
-        public static double[] shootingPositions = {0.12, 0.295, 0.465};
-        public static double[] encoderShootingPositions = {1335, 4150, 6870};
+        public static double[] intakingPositions = {0.11, 0.28, 0.452};
+        public static double[] shootingPositions = {0.195, 0.365, 0.535};
+        public static double[] encoderShootingPositions = {1390, 4120, 6820};
 
 
 
@@ -131,7 +131,7 @@ public class rConstants {
 
 
 
-        public static double positionalTolerance = 2200;
+        public static double positionalTolerance = 3200;
     }
 
 
@@ -192,14 +192,14 @@ public class rConstants {
 
 
 
-        public static double homePosition = 0.27;
-        public static double transferPosition = 0.382;
+        public static double homePosition = 0.33;
+        public static double transferPosition = 0.465;
 
 
 
 
         public static long servoRiseTime = 0;
-        public static long servoHomingTime = 50;
+        public static long servoHomingTime = 125;
     }
 
 
