@@ -193,7 +193,7 @@ public class rConstants {
 
 
         public static double homePosition = 0.27;
-        public static double transferPosition = 0.378;
+        public static double transferPosition = 0.382;
 
 
 
