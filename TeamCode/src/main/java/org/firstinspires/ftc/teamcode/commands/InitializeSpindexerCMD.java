@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.commands;
 import com.arcrobotics.ftclib.command.InstantCommand;
 import com.arcrobotics.ftclib.command.SequentialCommandGroup;
 import com.arcrobotics.ftclib.command.WaitCommand;
+import com.arcrobotics.ftclib.command.WaitUntilCommand;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import org.firstinspires.ftc.teamcode.subsystems.SpindexerSubsystem;
@@ -21,7 +22,7 @@ public class InitializeSpindexerCMD extends SequentialCommandGroup{
         addCommands(
                 new SequentialCommandGroup(
                         new InstantCommand(() -> spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.intakingPositions[0])),
-                        new WaitCommand(1000),
+                        new WaitCommand(2500),
                         new InstantCommand(() -> robot.spindexerEncoder.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER))
                 )
         );

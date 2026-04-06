@@ -31,8 +31,8 @@ public class rConstants {
 
     @Config
     public static class AllianceHeadingOffsets{
-        public static double blueAllianceHeadingOffset = -90;
-        public static double redAllianceHeadingOffset = 90;
+        public static double blueAllianceHeadingOffset = Math.toRadians(-90);
+        public static double redAllianceHeadingOffset = Math.toRadians(90);
     }
 
 
@@ -111,7 +111,7 @@ public class rConstants {
     public static class SpindexerConstants{
         public static String leftSpindexerServoName = "leftSpindexerServo";
         public static String rightSpindexerServoName = "rightSpindexerServo";
-        public static String spindexerEncoderName = rConstants.DriveTrainConstants.frontRightMotorName;
+        public static String spindexerEncoderName = "spindexerEncoder";
 
 
 
@@ -119,7 +119,7 @@ public class rConstants {
 
         public static double[] intakingPositions = {0.11, 0.28, 0.452};
         public static double[] shootingPositions = {0.195, 0.365, 0.535};
-        public static double[] encoderShootingPositions = {1390, 4120, 6820};
+        public static double[] encoderShootingPositions = {1430, 4120, 6850};
 
 
 
@@ -131,7 +131,7 @@ public class rConstants {
 
 
 
-        public static double positionalTolerance = 4500;
+        public static double positionalTolerance = 2390;
     }
 
 
@@ -192,14 +192,14 @@ public class rConstants {
 
 
 
-        public static double homePosition = 0.33;
-        public static double transferPosition = 0.525;
+        public static double homePosition = 0.31;
+        public static double transferPosition = 0.4;
 
 
 
 
         public static long servoRiseTime = 80;
-        public static long servoHomingTime = 20;
+        public static long servoHomingTime = 115;
     }
 
 
@@ -217,6 +217,7 @@ public class rConstants {
         public static GamepadKeys.Button enableIntake = GamepadKeys.Button.RIGHT_STICK_BUTTON;
         public static GamepadKeys.Button reverseIntake = GamepadKeys.Button.LEFT_STICK_BUTTON;
         public static GamepadKeys.Button shootArtefacts = GamepadKeys.Button.A;
+        public static GamepadKeys.Button indexSpindexer = GamepadKeys.Button.RIGHT_BUMPER;
     }
 
 }

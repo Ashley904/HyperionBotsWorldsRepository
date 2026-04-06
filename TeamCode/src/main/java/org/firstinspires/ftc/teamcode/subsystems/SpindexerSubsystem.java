@@ -50,6 +50,11 @@ public class SpindexerSubsystem extends SubsystemBase{
 
 
 
+    private int currentIntakingIndex = 0;
+
+
+
+
 
     public SpindexerSubsystem(RobotHardwareMap robotHardwareMap){
         this.robot = robotHardwareMap;
@@ -62,7 +67,7 @@ public class SpindexerSubsystem extends SubsystemBase{
     @Override
     public void periodic(){
         cachedEncoderVelocity = robot.spindexerEncoder.getVelocity();
-        cachedEncoderVelocity = robot.spindexerEncoder.getCurrentPosition();
+        cachedEncoderPosition = Math.abs(robot.spindexerEncoder.getCurrentPosition());
 
         //Calling Functions
         updateSpindexerVelocityZeroedStatus();
@@ -90,7 +95,7 @@ public class SpindexerSubsystem extends SubsystemBase{
     // Helpers
     public SpindexerState getSpindexerState() { return currentSpindexerState; }
     public double getVelocity() { return cachedEncoderVelocity; }
-    public double getPosition() { return cachedEncoderPosition; }
+    public double getPosition() { return Math.abs(cachedEncoderPosition); }
 
 
 
@@ -142,4 +147,17 @@ public class SpindexerSubsystem extends SubsystemBase{
         }
     }
     public boolean spindexerPositionalReached() { return positionReached; }
+
+
+
+
+
+    public void cycleIntakingPosition() {
+        currentIntakingIndex++;
+        if (currentIntakingIndex > 2) currentIntakingIndex = 0;
+        setSpindexerPosition(rConstants.SpindexerConstants.intakingPositions[currentIntakingIndex]);
+    }
+    public int getCurrentIntakingIndex() { return currentIntakingIndex; }
+
+    public void resetIntakingIndex() { currentIntakingIndex = 0; }
 }

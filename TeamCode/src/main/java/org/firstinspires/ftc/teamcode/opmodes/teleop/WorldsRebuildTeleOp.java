@@ -57,6 +57,7 @@ public class WorldsRebuildTeleOp extends OpMode {
     private ButtonReader cycleDriveModesButtonReader;
     private ButtonReader enableIntakeButtonReader, reverseIntakeButtonReader;
     private ButtonReader shootArtefactsButtonReader;
+    private  ButtonReader indexSpindexerButtonReader;
 
 
 
@@ -172,11 +173,18 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
     @Override
+    public void start() { CommandScheduler.getInstance().reset();  }
+
+
+
+
+
+    @Override
     public void loop(){
         //Calling Functions
         GamepadControlsManaging();
-        RobotDrive();
         BackgroundOperations();
+        RobotDrive();
 
         if(loopCount++ % 3 == 0) TelemetryUpdating();
     }
@@ -191,10 +199,10 @@ public class WorldsRebuildTeleOp extends OpMode {
         adjustedDrivingSpeed = Math.max(adjustedDrivingSpeed, rConstants.DriveTrainConstants.minimumDriveTrainSpeed);
 
 
-        double y = -rConstants.GamePadControls.gamepad1EX.getLeftY() * adjustedDrivingSpeed;
-        double x = rConstants.GamePadControls.gamepad1EX.getLeftX() * adjustedDrivingSpeed;
-        double rx = rConstants.GamePadControls.gamepad1EX.getRightX() * adjustedDrivingSpeed * -1;
-        rx = rx * 1.1;
+        double y = gamepad1.left_stick_y * adjustedDrivingSpeed;
+        double x = gamepad1.left_stick_x * adjustedDrivingSpeed;
+        double rx = gamepad1.right_stick_x * adjustedDrivingSpeed * -1;
+        x = x * 1.1;
 
 
         double rotatedX = x * Math.cos(-getFieldHeading()) - y * Math.sin(-getFieldHeading());
@@ -309,6 +317,20 @@ public class WorldsRebuildTeleOp extends OpMode {
         shootArtefactsButtonReader.readValue();
         if(shootArtefactsButtonReader.wasJustPressed()) { CommandScheduler.getInstance().schedule(new ShootArtefactsCMD(spindexerSubsystem, intakeSubsystem, robot)); }
         //----------end----------//
+
+
+
+
+
+        //----------Indexing Spindexer----------//
+        indexSpindexerButtonReader.readValue();
+        if (indexSpindexerButtonReader.wasJustPressed()
+                && spindexerSubsystem.getSpindexerState() != SpindexerSubsystem.SpindexerState.Shooting) {
+            spindexerSubsystem.cycleIntakingPosition();
+            RumbleGamePad(150);
+        }
+        //----------end----------//
+
     }
     private void InitializeGamePadControls(){
         rConstants.GamePadControls.gamepad1EX = new GamepadEx(gamepad1);
@@ -318,6 +340,7 @@ public class WorldsRebuildTeleOp extends OpMode {
         enableIntakeButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.enableIntake);
         reverseIntakeButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.reverseIntake);
         shootArtefactsButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.shootArtefacts);
+        indexSpindexerButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.indexSpindexer);
     }
 
 
@@ -326,7 +349,6 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     private void BackgroundOperations(){
         follower.update();
-        CommandScheduler.getInstance().run();
 
 
 
@@ -338,6 +360,8 @@ public class WorldsRebuildTeleOp extends OpMode {
 
         shooterSubsystem.setTargetVelocity(targetFlyWheelVelocity);
         shooterSubsystem.setHoodPosition(targetHoodPosition);
+
+        CommandScheduler.getInstance().run();
     }
 
 
@@ -389,9 +413,12 @@ public class WorldsRebuildTeleOp extends OpMode {
     private double getHeading() { return follower.getPose().getHeading(); }
     private double getXPose() { return follower.getPose().getX(); }
     private double getYPose() { return follower.getPose().getY(); }
+
     private double getFieldHeading() {
-        if(rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE) headingOffset = rConstants.AllianceHeadingOffsets.blueAllianceHeadingOffset;
-        else if(rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.RED) headingOffset = rConstants.AllianceHeadingOffsets.redAllianceHeadingOffset;
+        if(rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE)
+            headingOffset = rConstants.AllianceHeadingOffsets.blueAllianceHeadingOffset;
+        else if(rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.RED)
+            headingOffset = rConstants.AllianceHeadingOffsets.redAllianceHeadingOffset;
 
         return getHeading() - headingOffset;
     }
