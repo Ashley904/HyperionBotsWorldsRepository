@@ -5,10 +5,32 @@ import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 
 public class rConstants {
+    public static class FieldConstants{
+        public static double fieldSize = 144.0;
+
+
+
+
+
+
+        public static double blueGoalXPosition = 133.0, blueGoalYPosition = 141.0;
+        public static double redGoalXPosition = 128.0, redGoalYPosition = 15.0;
+
+
+
+
+
+        public static double startingXPosition = 72.0, startingYPosition = 72.0;
+    }
+
+
+
+
+
     @Config
     public static class Enums{
         public enum Alliance {BLUE, RED}
-        public static Alliance selectedAlliance = Alliance.BLUE;
+        public static Alliance selectedAlliance = Alliance.RED;
 
 
 
@@ -79,6 +101,56 @@ public class rConstants {
 
 
 
+    public static class PinpointConstants{
+        public static String pinpointDriveName = "pinpoint";
+
+
+
+
+
+        public static boolean strafePodInverted = true;
+        public static boolean forwardPodInverted = true;
+
+
+
+
+
+
+        public static double strafePodOffset = 0.0;
+        public static double forwardPodOffset = 0.0;
+    }
+
+
+
+
+
+    @Config
+    public static class AutonomousConstants{
+        public static double translationalKSQ = 0.0;
+        public static double translationalKD = 0.0;
+
+        public static double headingKSQ = 0.0;
+        public static double headingKd = 0.0;
+
+
+
+
+        public static double radiusTolerance = 0.0;
+        public static double headingTolerance = 0.0; // Degrees
+
+
+
+
+
+
+        public static double targetConfirmationSeconds = 0.25;
+        public static double overtimeProtectionSeconds = 3;
+    }
+
+
+
+
+
     @Config
     public static class IntakeConstants{
         public static String intakeMotorName = "intakeMotor";
@@ -117,9 +189,9 @@ public class rConstants {
 
 
 
-        public static double[] intakingPositions = {0.11, 0.28, 0.452};
-        public static double[] shootingPositions = {0.195, 0.365, 0.535};
-        public static double[] encoderShootingPositions = {1430, 4120, 6850};
+        public static double[] intakingPositions = {0.1325, 0.305, 0.475};
+        public static double[] shootingPositions = {0.22, 0.39, 0.565};
+        public static double[] encoderShootingPositions = {1410, 4125, 6915};
 
 
 
@@ -131,7 +203,7 @@ public class rConstants {
 
 
 
-        public static double positionalTolerance = 2390;
+        public static double positionalTolerance = 2250;
     }
 
 
@@ -160,8 +232,8 @@ public class rConstants {
 
 
 
-        public static double flyWheelKs=0.1, flyWheelKf=0.0003, flyWheelKp=0.00175;
-        public static double nominalVoltage=13.35;
+        public static double flyWheelKs=0.06, flyWheelKf=0.00034, flyWheelKp=0.0014;
+        public static double nominalVoltage=13.4;
 
 
 
@@ -175,7 +247,13 @@ public class rConstants {
 
 
 
-        public double minimumHoodPosition=0.0, maximumHoodPosition=0.0;
+        public static double flywheelToBallSpeedRatio = 0.15;
+
+
+
+
+
+        public static double minimumHoodPosition=0, maximumHoodPosition=0.775;
     }
 
 
@@ -192,14 +270,14 @@ public class rConstants {
 
 
 
-        public static double homePosition = 0.31;
-        public static double transferPosition = 0.4;
+        public static double homePosition = 0.34;
+        public static double transferPosition = 0.55;
 
 
 
 
-        public static long servoRiseTime = 80;
-        public static long servoHomingTime = 115;
+        public static long servoRiseTime = 90;
+        public static long servoHomingTime = 130;
     }
 
 
@@ -218,6 +296,31 @@ public class rConstants {
         public static GamepadKeys.Button reverseIntake = GamepadKeys.Button.LEFT_STICK_BUTTON;
         public static GamepadKeys.Button shootArtefacts = GamepadKeys.Button.A;
         public static GamepadKeys.Button indexSpindexer = GamepadKeys.Button.RIGHT_BUMPER;
+    }
+
+
+
+
+
+    @Config
+    public static class SensorConstants{
+        public static String leftSpindexerColorSensorName = "leftSpindexerColorSensor";
+        public static String rightSpindexerColorSensorName = "rightSpindexerColorSensor";
+
+
+
+
+
+        public static String leftDistanceSensorName = "leftDistanceSensor";
+        public static String rightDistanceSensorName = "rightDistanceSensor";
+
+
+
+
+
+        public static double distanceSensorOccupiedThreshold = 4.0; //C<
+        public static double leftSpindexerColorSensorOccupiedThreshold = 0.0;
+        public static double rightSpindexerColorSensorOccupiedThreshold = 0.0;
     }
 
 }

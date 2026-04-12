@@ -1,12 +1,14 @@
 package org.firstinspires.ftc.teamcode.util;
 
-import com.arcrobotics.ftclib.gamepad.GamepadEx;
-import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.ColorRangeSensor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.Servo;
 
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.teamcode.util.hardware.GoBildaPinpointDriver;
 
 public class RobotHardwareMap {
     public DcMotorEx front_left_motor, back_left_motor, front_right_motor, back_right_motor;
@@ -30,8 +32,23 @@ public class RobotHardwareMap {
 
 
 
+    public GoBildaPinpointDriver pinpointDriver;
+
+
+
+
+
     public Servo leftTransferServo;
     public Servo rightTransferServo;
+
+
+
+
+
+    public ColorRangeSensor leftSpindexerColorSensor;
+    public ColorRangeSensor rightSpindexerColorSensor;
+    public DistanceSensor leftDistanceSensor;
+    public DistanceSensor rightDistanceSensor;
 
 
 
@@ -46,12 +63,14 @@ public class RobotHardwareMap {
     public void init(HardwareMap hardwareMap){
         this.hardwareMap = hardwareMap;
 
-
         initializeIntake(hardwareMap);
         initializeShooter(hardwareMap);
         initializeTransfer(hardwareMap);
         initializeSpindexer(hardwareMap);
         initializeDriveTrain(hardwareMap);
+        initializeColorSensors(hardwareMap);
+        initializePinpointDriver(hardwareMap);
+        initializeDistanceSensors(hardwareMap);
     }
 
 
@@ -114,7 +133,38 @@ public class RobotHardwareMap {
 
     private void initializeTransfer(HardwareMap hardwareMap){
         leftTransferServo = hardwareMap.get(Servo.class, rConstants.TransferConstants.leftTransferServoName);
+
         rightTransferServo = hardwareMap.get(Servo.class, rConstants.TransferConstants.rightTransferServoName);
         rightTransferServo.setDirection(Servo.Direction.REVERSE);
+    }
+
+
+
+
+
+    public void initializePinpointDriver(HardwareMap hardwareMap){
+        pinpointDriver = hardwareMap.get(GoBildaPinpointDriver.class, rConstants.PinpointConstants.pinpointDriveName);
+        pinpointDriver.setEncoderDirections(rConstants.PinpointConstants.strafePodInverted ? GoBildaPinpointDriver.EncoderDirection.REVERSED : GoBildaPinpointDriver.EncoderDirection.FORWARD,
+                rConstants.PinpointConstants.forwardPodInverted ? GoBildaPinpointDriver.EncoderDirection.REVERSED : GoBildaPinpointDriver.EncoderDirection.FORWARD);
+
+        pinpointDriver.setOffsets(rConstants.PinpointConstants.strafePodOffset, rConstants.PinpointConstants.forwardPodOffset, DistanceUnit.INCH);
+    }
+
+
+
+
+
+    public void initializeColorSensors(HardwareMap hardwareMap){
+        leftSpindexerColorSensor = hardwareMap.get(ColorRangeSensor.class, rConstants.SensorConstants.leftSpindexerColorSensorName);
+        rightSpindexerColorSensor = hardwareMap.get(ColorRangeSensor.class, rConstants.SensorConstants.rightSpindexerColorSensorName);
+    }
+
+
+
+
+
+    public void initializeDistanceSensors(HardwareMap hardwareMap){
+        leftDistanceSensor = hardwareMap.get(ColorRangeSensor.class, rConstants.SensorConstants.leftDistanceSensorName);
+        rightDistanceSensor = hardwareMap.get(ColorRangeSensor.class, rConstants.SensorConstants.rightDistanceSensorName);
     }
 }
