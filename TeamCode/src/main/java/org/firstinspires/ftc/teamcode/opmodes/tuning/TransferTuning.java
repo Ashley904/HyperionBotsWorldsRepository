@@ -43,17 +43,11 @@ public class TransferTuning extends OpMode {
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
         robot = new RobotHardwareMap();
         robot.init(hardwareMap);
-    }
 
-
-
-
-
-    @Override
-    public void init_loop(){
         telemetry.addData("Status: ", "Ready to start...");
         telemetry.update();
     }
+
 
 
 

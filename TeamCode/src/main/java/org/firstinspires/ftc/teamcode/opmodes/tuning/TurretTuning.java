@@ -5,22 +5,22 @@ import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
 
-import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
+import org.firstinspires.ftc.teamcode.subsystems.TurretSubsystem;
 import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
 
 @Config
-@TeleOp(name="Intake Tuning", group="Tuners")
-public class IntakeTuning extends OpMode {
+@TeleOp(name="Turret Tuning", group="Tuners")
+public class TurretTuning extends OpMode {
     FtcDashboard ftcDashboard;
     RobotHardwareMap robot;
+    TurretSubsystem turretSubsystem;
 
 
 
 
 
-    public static double intakeSpeed;
+    public static int targetTurretAngle = 0;
 
 
 
@@ -34,6 +34,8 @@ public class IntakeTuning extends OpMode {
         robot = new RobotHardwareMap();
         robot.init(hardwareMap);
 
+        turretSubsystem = new TurretSubsystem(robot);
+
         telemetry.addData("Status: ", "Ready to start...");
         telemetry.update();
     }
@@ -44,13 +46,12 @@ public class IntakeTuning extends OpMode {
 
     @Override
     public void loop(){
-        robot.intakeMotor.setPower(intakeSpeed);
+        turretSubsystem.setTurretAngle(targetTurretAngle);
+        turretSubsystem.periodic();
 
-        double intakeVelocity = robot.intakeMotor.getVelocity();
-        double intakeCurrentDraw = robot.intakeMotor.getCurrent(CurrentUnit.AMPS);
 
-        telemetry.addData("Intake Velocity: ", intakeVelocity);
-        telemetry.addData("Intake Current Draw: ", intakeCurrentDraw);
+        telemetry.addData("Current Turret Position: ", turretSubsystem.getCurrentTurretPosition());
+        telemetry.addData("Target Turret Position: ", turretSubsystem.getTargetTurretPosition());
         telemetry.update();
     }
 }

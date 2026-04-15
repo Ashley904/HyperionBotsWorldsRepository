@@ -70,21 +70,15 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
 
-    private double targetHeading=0.0, headingOffset=0.0;
+    private double targetHeading=0.0;
     private boolean headingCorrectionEnabled=true;
 
 
 
 
 
-    public static double spindexerPosition = 0.0;
-
-
-
-
-
     private int loopCount = 0;
-    private ElapsedTime elapsedTime = new ElapsedTime();
+    private final ElapsedTime elapsedTime = new ElapsedTime();
 
 
 
@@ -172,6 +166,8 @@ public class WorldsRebuildTeleOp extends OpMode {
         shooterSubsystem.periodic();
         spindexerSubsystem.periodic();
 
+        CommandScheduler.getInstance().run();
+
         telemetry.addData("Status: ", "Waiting for start...");
         telemetry.update();
     }
@@ -209,14 +205,13 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
         double y = gamepad1.left_stick_y * adjustedDrivingSpeed;
-        double x = gamepad1.left_stick_x * adjustedDrivingSpeed;
+        double x = -gamepad1.left_stick_x * adjustedDrivingSpeed;
         double rx = gamepad1.right_stick_x * adjustedDrivingSpeed * -1;
-        x = x * 1.1;
 
 
-        double rotatedX = x * Math.cos(-getFieldHeading()) - y * Math.sin(-getFieldHeading());
-        double rotatedY = x * Math.sin(-getFieldHeading()) + y * Math.cos(-getFieldHeading());
-        rotatedX = rotatedX * 1.1;
+        double headingOffset = rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE ? rConstants.AllianceHeadingOffsets.blueAllianceHeadingOffset : rConstants.AllianceHeadingOffsets.redAllianceHeadingOffset;
+        double rotatedX = x * Math.cos(-getHeading() + headingOffset) - y * Math.sin(-getHeading() + headingOffset);
+        double rotatedY = x * Math.sin(-getHeading() + headingOffset) + y * Math.cos(-getHeading() + headingOffset);
 
 
 
@@ -509,18 +504,9 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
     //Helpers
-    private double getHeading() { return robot.pinpointDriver.getHeading(AngleUnit.DEGREES); }
+    private double getHeading() { return robot.pinpointDriver.getHeading(AngleUnit.RADIANS); }
     private double getXPose() { return robot.pinpointDriver.getEncoderX(); }
     private double getYPose() { return robot.pinpointDriver.getEncoderY(); }
-    private double getFieldHeading() {
-        if(rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE)
-            headingOffset = rConstants.AllianceHeadingOffsets.blueAllianceHeadingOffset;
-        else if(rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.RED)
-            headingOffset = rConstants.AllianceHeadingOffsets.redAllianceHeadingOffset;
-
-        return getHeading() - headingOffset;
-    }
-
     private double getXVelocity() { return robot.pinpointDriver.getVelX(); }
     private double getYVelocity() { return robot.pinpointDriver.getVelY(); }
 

@@ -49,7 +49,15 @@ public class ShooterTuning extends OpMode {
 
 
         shooterSubsystem = new ShooterSubsystem(robot);
+
+        telemetry.addData("Status: ", "Ready to start...");
+        telemetry.update();
     }
+
+
+
+
+
 
     @Override
     public void loop(){

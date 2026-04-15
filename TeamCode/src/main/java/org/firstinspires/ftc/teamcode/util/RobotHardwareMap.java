@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.util;
 
 import com.qualcomm.robotcore.hardware.ColorRangeSensor;
+import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
@@ -13,6 +14,12 @@ import org.firstinspires.ftc.teamcode.util.hardware.GoBildaPinpointDriver;
 public class RobotHardwareMap {
     public DcMotorEx front_left_motor, back_left_motor, front_right_motor, back_right_motor;
     public DcMotorEx intakeMotor;
+
+
+
+
+
+    public DcMotorEx turretMotor;
 
 
 
@@ -63,6 +70,7 @@ public class RobotHardwareMap {
     public void init(HardwareMap hardwareMap){
         this.hardwareMap = hardwareMap;
 
+        initializeTurret(hardwareMap);
         initializeIntake(hardwareMap);
         initializeShooter(hardwareMap);
         initializeTransfer(hardwareMap);
@@ -89,6 +97,16 @@ public class RobotHardwareMap {
         motor.setZeroPowerBehavior(floatModeEnabled ? DcMotorEx.ZeroPowerBehavior.FLOAT : DcMotorEx.ZeroPowerBehavior.BRAKE);
 
         return motor;
+    }
+
+
+
+
+
+    private void initializeTurret(HardwareMap hwMap){
+        turretMotor = hwMap.get(DcMotorEx.class, rConstants.TurretConstants.turretMotorName);
+        turretMotor.setDirection(rConstants.TurretConstants.turretMotorInverted ? DcMotorEx.Direction.REVERSE : DcMotorEx.Direction.FORWARD);
+        turretMotor.setZeroPowerBehavior(rConstants.TurretConstants.floatModeEnabled ? DcMotor.ZeroPowerBehavior.FLOAT : DcMotor.ZeroPowerBehavior.BRAKE);
     }
 
 
@@ -144,8 +162,8 @@ public class RobotHardwareMap {
 
     public void initializePinpointDriver(HardwareMap hardwareMap){
         pinpointDriver = hardwareMap.get(GoBildaPinpointDriver.class, rConstants.PinpointConstants.pinpointDriveName);
-        pinpointDriver.setEncoderDirections(rConstants.PinpointConstants.strafePodInverted ? GoBildaPinpointDriver.EncoderDirection.REVERSED : GoBildaPinpointDriver.EncoderDirection.FORWARD,
-                rConstants.PinpointConstants.forwardPodInverted ? GoBildaPinpointDriver.EncoderDirection.REVERSED : GoBildaPinpointDriver.EncoderDirection.FORWARD);
+        pinpointDriver.setEncoderDirections(rConstants.PinpointConstants.forwardPodInverted ? GoBildaPinpointDriver.EncoderDirection.REVERSED : GoBildaPinpointDriver.EncoderDirection.FORWARD,
+                rConstants.PinpointConstants.strafePodInverted ? GoBildaPinpointDriver.EncoderDirection.REVERSED : GoBildaPinpointDriver.EncoderDirection.FORWARD);
 
         pinpointDriver.setOffsets(rConstants.PinpointConstants.strafePodOffset, rConstants.PinpointConstants.forwardPodOffset, DistanceUnit.INCH);
     }
@@ -164,7 +182,7 @@ public class RobotHardwareMap {
 
 
     public void initializeDistanceSensors(HardwareMap hardwareMap){
-        leftDistanceSensor = hardwareMap.get(ColorRangeSensor.class, rConstants.SensorConstants.leftDistanceSensorName);
-        rightDistanceSensor = hardwareMap.get(ColorRangeSensor.class, rConstants.SensorConstants.rightDistanceSensorName);
+        leftDistanceSensor = hardwareMap.get(DistanceSensor.class, rConstants.SensorConstants.leftDistanceSensorName);
+        rightDistanceSensor = hardwareMap.get(DistanceSensor.class, rConstants.SensorConstants.rightDistanceSensorName);
     }
 }

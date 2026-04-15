@@ -3,11 +3,13 @@ package org.firstinspires.ftc.teamcode.opmodes.tuning;
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
+import com.arcrobotics.ftclib.geometry.Pose2d;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
 
 @TeleOp(name="Odometry Tuning", group="Tuners")
@@ -24,6 +26,12 @@ public class OdometryTuning extends OpMode {
 
 
 
+    private final Pose2D startingPose = new Pose2D(DistanceUnit.INCH, 72.0, 72.0, AngleUnit.DEGREES, 0);
+
+
+
+
+
     @Override
     public void init(){
         ftcDashboard = FtcDashboard.getInstance();
@@ -31,14 +39,12 @@ public class OdometryTuning extends OpMode {
 
         robot = new RobotHardwareMap();
         robot.init(hardwareMap);
-    }
 
+        robot.pinpointDriver.recalibrateIMU();
+        robot.pinpointDriver.resetPosAndIMU();
 
+        robot.pinpointDriver.setPosition(startingPose);
 
-
-
-    @Override
-    public void init_loop(){
         telemetry.addData("Status: ", "Ready to start...");
         telemetry.update();
     }
@@ -51,13 +57,12 @@ public class OdometryTuning extends OpMode {
     public void loop(){
         robot.pinpointDriver.update();
 
-        double currentXPosition = robot.pinpointDriver.getPosX(DistanceUnit.INCH);
-        double currentYPosition = robot.pinpointDriver.getPosY(DistanceUnit.INCH);
-        double currentHeading = robot.pinpointDriver.getHeading(AngleUnit.DEGREES);
+        double currentXPosition = robot.pinpointDriver.getPosY(DistanceUnit.INCH);
+        double currentYPosition = robot.pinpointDriver.getPosX(DistanceUnit.INCH);
+        double currentHeading = robot.pinpointDriver.getHeading(AngleUnit.RADIANS);
 
-        double currentXVelocity = robot.pinpointDriver.getVelX();
-        double currentYVelocity = robot.pinpointDriver.getVelY();
-
+        double currentXVelocity = robot.pinpointDriver.getVelY();
+        double currentYVelocity = robot.pinpointDriver.getVelX();
 
 
 
@@ -66,7 +71,7 @@ public class OdometryTuning extends OpMode {
         telemetry.addData("Current X Position: ","%.0f", currentXPosition);
         telemetry.addData("Current Y Position: ","%.0f", currentYPosition);
 
-        telemetry.addData("Current Heading: ","%.1f", currentHeading);
+        telemetry.addData("Current Heading: ","%.1f", Math.toDegrees(currentHeading));
 
         telemetry.addData("Current X Velocity: ","%.1f", currentXVelocity);
         telemetry.addData("Current Y Velocity: ", "%.1f", currentYVelocity);

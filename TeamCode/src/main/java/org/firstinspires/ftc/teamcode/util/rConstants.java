@@ -5,6 +5,7 @@ import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 
 public class rConstants {
+    @Config
     public static class FieldConstants{
         public static double fieldSize = 144.0;
 
@@ -93,7 +94,7 @@ public class rConstants {
 
 
 
-        public static double driveCubicTerm=0.5, driveLinearTerm=0.4;
+        public static double driveCubicTerm=0.6, driveLinearTerm=0.5;
         public static double maximumDriveTrainSpeed=1.0, minimumDriveTrainSpeed=0.35;
     }
 
@@ -101,6 +102,7 @@ public class rConstants {
 
 
 
+    @Config
     public static class PinpointConstants{
         public static String pinpointDriveName = "pinpoint";
 
@@ -108,7 +110,7 @@ public class rConstants {
 
 
 
-        public static boolean strafePodInverted = true;
+        public static boolean strafePodInverted = false;
         public static boolean forwardPodInverted = true;
 
 
@@ -116,8 +118,8 @@ public class rConstants {
 
 
 
-        public static double strafePodOffset = 0.0;
-        public static double forwardPodOffset = 0.0;
+        public static double strafePodOffset = 0.79;
+        public static double forwardPodOffset = -7.68; //
     }
 
 
@@ -164,15 +166,15 @@ public class rConstants {
         public static double disabledSpeed = 0.0;
         public static double intakingSpeed = 1.0;
         public static double reversingSpeed = -1.0;
-        public static double idlingSpeed = 0.75;
+        public static double idlingSpeed = 0.8;
 
 
 
 
 
         public static double currentAlert = 6.0;
-        public static double jamVelocityAlert = 900.0;
-        public static double jamTimeConfirmation = 100;
+        public static double jamVelocityAlert = 1050.0;
+        public static double jamTimeConfirmation = 150;
     }
 
 
@@ -183,7 +185,7 @@ public class rConstants {
     public static class SpindexerConstants{
         public static String leftSpindexerServoName = "leftSpindexerServo";
         public static String rightSpindexerServoName = "rightSpindexerServo";
-        public static String spindexerEncoderName = "spindexerEncoder";
+        public static String spindexerEncoderName = DriveTrainConstants.frontLeftMotorName;
 
 
 
@@ -254,6 +256,24 @@ public class rConstants {
 
 
         public static double minimumHoodPosition=0, maximumHoodPosition=0.775;
+    }
+
+
+
+
+
+    @Config
+    public static class TurretConstants{
+        public static String turretMotorName = "turretMotor";
+        public static boolean turretMotorInverted = false;
+        public static boolean floatModeEnabled = false;
+
+
+
+
+
+        public static double turretKp=0.0, turretKd=0.0;
+        public static double maxTurretPower=1.0;
     }
 
 

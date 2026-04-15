@@ -29,17 +29,11 @@ public class SpindexerSensorTuning extends OpMode {
 
         robot = new RobotHardwareMap();
         robot.init(hardwareMap);
-    }
 
-
-
-
-
-    @Override
-    public void init_loop(){
         telemetry.addData("Status: ", "Ready to start...");
         telemetry.update();
     }
+
 
 
 
