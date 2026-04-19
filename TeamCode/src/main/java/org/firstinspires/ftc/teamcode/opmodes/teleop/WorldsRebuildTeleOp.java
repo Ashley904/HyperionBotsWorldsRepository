@@ -6,22 +6,26 @@ import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.arcrobotics.ftclib.command.CommandScheduler;
 import com.arcrobotics.ftclib.gamepad.ButtonReader;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
+import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.Pose;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
-import org.firstinspires.ftc.teamcode.commands.InitializeSpindexerCMD;
 import org.firstinspires.ftc.teamcode.commands.InitializeTransferCMD;
 import org.firstinspires.ftc.teamcode.commands.ShootArtefactsCMD;
 import org.firstinspires.ftc.teamcode.controllers.PDController;
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.subsystems.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.ShooterSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.SpindexerSensorsSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.SpindexerSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.TurretSubsystem;
 import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
 
 import org.firstinspires.ftc.teamcode.util.rConstants;
@@ -35,12 +39,14 @@ import java.util.Comparator;
 public class WorldsRebuildTeleOp extends OpMode {
     FtcDashboard ftcDashboard;
     PDController headingPDController;
+    Follower follower;
 
 
 
 
 
     IntakeSubsystem intakeSubsystem;
+    TurretSubsystem turretSubsystem;
     ShooterSubsystem shooterSubsystem;
     SpindexerSubsystem spindexerSubsystem;
     SpindexerSensorsSubsystem spindexerSensorsSubsystem;
@@ -64,7 +70,7 @@ public class WorldsRebuildTeleOp extends OpMode {
     private ButtonReader cycleDriveModesButtonReader;
     private ButtonReader enableIntakeButtonReader, reverseIntakeButtonReader;
     private ButtonReader shootArtefactsButtonReader;
-    private  ButtonReader indexSpindexerButtonReader;
+    private ButtonReader indexSpindexerButtonReader;
 
 
 
@@ -87,6 +93,8 @@ public class WorldsRebuildTeleOp extends OpMode {
     private static final List<CalibrationPoints> calibrationPoints = new ArrayList<>();
     double dynamicTargetFlyWheelVelocity = 0.0, dynamicTargetHoodPosition = 0.0;
 
+    private Pose startingPose = new Pose(72.0, 72.0);
+
 
 
 
@@ -97,6 +105,9 @@ public class WorldsRebuildTeleOp extends OpMode {
         robot.init(hardwareMap);
         robot.pinpointDriver.recalibrateIMU();
         robot.pinpointDriver.setPosition(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 0));
+
+        follower = Constants.createFollower(hardwareMap);
+        follower.setStartingPose(startingPose);
 
 
 
@@ -118,6 +129,7 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
         intakeSubsystem = new IntakeSubsystem(robot);
+        turretSubsystem = new TurretSubsystem(robot);
         shooterSubsystem = new ShooterSubsystem(robot);
         spindexerSubsystem = new SpindexerSubsystem(robot);
         spindexerSensorsSubsystem = new SpindexerSensorsSubsystem(robot);
@@ -145,7 +157,6 @@ public class WorldsRebuildTeleOp extends OpMode {
         shooterSubsystem.setTargetVelocity(0);
 
         CommandScheduler.getInstance().schedule(new InitializeTransferCMD(robot));
-        CommandScheduler.getInstance().schedule(new InitializeSpindexerCMD(robot, spindexerSubsystem));
 
 
 
@@ -166,6 +177,8 @@ public class WorldsRebuildTeleOp extends OpMode {
         shooterSubsystem.periodic();
         spindexerSubsystem.periodic();
 
+        spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.intakingPositions[0]);
+
         CommandScheduler.getInstance().run();
 
         telemetry.addData("Status: ", "Waiting for start...");
@@ -177,7 +190,12 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
     @Override
-    public void start() { CommandScheduler.getInstance().reset();  }
+    public void start() {
+        CommandScheduler.getInstance().reset();
+        robot.spindexerEncoder.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+        robot.spindexerEncoder.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
+        spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.intakingPositions[0]);
+    }
 
 
 
@@ -186,6 +204,8 @@ public class WorldsRebuildTeleOp extends OpMode {
     @Override
     public void loop(){
         //Calling Functions
+        follower.update();
+
         GamepadControlsManaging();
         BackgroundOperations();
         RobotDrive();
@@ -217,12 +237,20 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
         //----------Heading Correction----------//
+        headingPDController.setGains(rConstants.DriveTrainConstants.headingKp, rConstants.DriveTrainConstants.headingKd);
+
         if(Math.abs(rConstants.GamePadControls.gamepad1EX.getRightX()) > 0.05) {
             headingCorrectionEnabled = false;
             targetHeading = getHeading();
         } else { headingCorrectionEnabled = true; }
 
-        if(headingCorrectionEnabled) { rx = headingPDController.calculate(getHeading(), targetHeading, -0.75, 0.75); }
+        if(headingCorrectionEnabled) {
+            double headingError = targetHeading - getHeading();
+            while(headingError > Math.PI) headingError -= 2 * Math.PI;
+            while(headingError < -Math.PI) headingError += 2 * Math.PI;
+
+            rx = headingPDController.calculate(0, headingError, -0.75, 0.75);
+        }
         //----------end-----------//
 
 
@@ -280,6 +308,7 @@ public class WorldsRebuildTeleOp extends OpMode {
                         break;
                 }
 
+                spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.intakingPositions[0]);
                 RumbleGamePad(150);
             }
 
@@ -341,6 +370,7 @@ public class WorldsRebuildTeleOp extends OpMode {
     private void BackgroundOperations(){
         intakeSubsystem.periodic();
         shooterSubsystem.periodic();
+        turretSubsystem.periodic();
         spindexerSubsystem.periodic();
 
         shooterSubsystem.setTargetVelocity(dynamicTargetFlyWheelVelocity);
@@ -353,22 +383,17 @@ public class WorldsRebuildTeleOp extends OpMode {
     }
     private void SpindexerManaging(){
         if(spindexerSubsystem.getSpindexerState() == SpindexerSubsystem.SpindexerState.Shooting
-        || intakeSubsystem.getState() != IntakeSubsystem.IntakeState.Intaking
-        || !spindexerSubsystem.spindexerPositionReached()) return;
-
+                || intakeSubsystem.getState() != IntakeSubsystem.IntakeState.Intaking
+                || !spindexerSubsystem.spindexerPositionReached()) return;
 
         spindexerSensorsSubsystem.readSensors();
-        if(spindexerSensorsSubsystem.spindexerIsFull()) { intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled); return; }
-
 
         int currentFrontSlot = spindexerSensorsSubsystem.getCurrentFrontSlot();
         if(spindexerSensorsSubsystem.isSlotOccupied(currentFrontSlot)){
-            int nextEmpty = spindexerSensorsSubsystem.getFirstEmptySlot();
-            if(nextEmpty != -1){
-                spindexerSubsystem.setSpindexerPosition(
-                        rConstants.SpindexerConstants.intakingPositions[nextEmpty]
-                );
-            }
+            int nextSlot = (currentFrontSlot + 1) % 3;
+            spindexerSubsystem.setSpindexerPosition(
+                    rConstants.SpindexerConstants.intakingPositions[nextSlot]
+            );
         }
     }
 
@@ -389,11 +414,12 @@ public class WorldsRebuildTeleOp extends OpMode {
     }
     private void InitializeCalibrationPoints() {
         calibrationPoints.clear();
-        calibrationPoints.add(new CalibrationPoints(84.0,  1900.0,  0.55));
-        calibrationPoints.add(new CalibrationPoints(58.0,  1785.0,  0.5));
-        calibrationPoints.add(new CalibrationPoints(100.0,  2160.0,  0.565));
-        calibrationPoints.add(new CalibrationPoints(125.0,  2300,  0.572));
-        calibrationPoints.add(new CalibrationPoints(145.0,  2350,  0.5));
+        calibrationPoints.add(new CalibrationPoints(170.0,  1510,  0));
+        calibrationPoints.add(new CalibrationPoints(150.0,  1450.0,  0));
+        calibrationPoints.add(new CalibrationPoints(105.0,  1315,  0));
+        calibrationPoints.add(new CalibrationPoints(85.0,  1300.0,  0));
+        calibrationPoints.add(new CalibrationPoints(65.0,  1200.0,  0));
+        calibrationPoints.add(new CalibrationPoints(55.0,  1100.0,  0));
         calibrationPoints.sort(Comparator.comparingDouble(a -> a.distanceToGoal));
     }
     private void CalculateShooterParameters() {
@@ -403,8 +429,8 @@ public class WorldsRebuildTeleOp extends OpMode {
         double velX = robot.pinpointDriver.getVelX(DistanceUnit.INCH);
         double velY = robot.pinpointDriver.getVelY(DistanceUnit.INCH);
 
-        double dx = getGoalX() - getFieldX();
-        double dy = getGoalY() - getFieldY();
+        double dx = getGoalX() - getYPose();
+        double dy = getGoalY() - getXPose();
 
         double ux = dx / distance;
         double uy = dy / distance;
@@ -464,13 +490,12 @@ public class WorldsRebuildTeleOp extends OpMode {
     private void TelemetryUpdating(){
         telemetry.addData("Selected Drive Mode: ", rConstants.Enums.selectedDriveMode);
 
-        telemetry.addData("X Pose: ",  "%.1f" , getFieldX());
-        telemetry.addData("Y Pose: ",  "%.1f" , getFieldY());
+        telemetry.addData("X Pose: ",  "%.1f" , follower.getPose().getX());
+        telemetry.addData("Y Pose: ",  "%.1f" , follower.getPose().getY());
         telemetry.addData("Distance To Goal: ", getDistanceToGoal());
         telemetry.addData("X Velocity: ", "%.2f" , getXVelocity());
         telemetry.addData("Y Velocity: ", "%.2f" , getYVelocity());
         telemetry.addData("Current Heading: ", "%.1f" , Math.toDegrees(getHeading()));
-        telemetry.addData("Angle To Goal: ", "%.1f" , getAngleToGoal());
 
         telemetry.addData("Intake State: ", intakeSubsystem.getState());
         telemetry.addData("Intake Velocity: ", "%.0f" , intakeSubsystem.getIntakeVelocity());
@@ -485,6 +510,9 @@ public class WorldsRebuildTeleOp extends OpMode {
         telemetry.addData("Current FlyWheel Velocity: ", "%.0f", shooterSubsystem.getCurrentFlyWheelVelocity());
         telemetry.addData("Target FlyWheel Wheel Velocity: ", "%.0f", dynamicTargetFlyWheelVelocity);
         telemetry.addData("Target Hood Position: ", "%.0f", dynamicTargetHoodPosition);
+
+        telemetry.addData("Turret Target Angle: ", "%.1f", turretSubsystem.getTargetAngle());
+        telemetry.addData("Turret Current Position: ", turretSubsystem.getCurrentTurretPosition());
 
         telemetry.addData("Loop Time: ", elapsedTime.milliseconds());
         elapsedTime.reset();
@@ -505,19 +533,14 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     //Helpers
     private double getHeading() { return robot.pinpointDriver.getHeading(AngleUnit.RADIANS); }
-    private double getXPose() { return robot.pinpointDriver.getEncoderX(); }
-    private double getYPose() { return robot.pinpointDriver.getEncoderY(); }
-    private double getXVelocity() { return robot.pinpointDriver.getVelX(); }
-    private double getYVelocity() { return robot.pinpointDriver.getVelY(); }
-
-    private double getFieldX() { return rConstants.FieldConstants.startingXPosition + robot.pinpointDriver.getPosX(DistanceUnit.INCH); }
-    private double getFieldY() { return rConstants.FieldConstants.startingYPosition + robot.pinpointDriver.getPosY(DistanceUnit.INCH); }
+    private double getXPose() { return follower.getPose().getY(); }
+    private double getYPose() { return follower.getPose().getX(); }
+    private double getXVelocity() { return robot.pinpointDriver.getVelY(); }
+    private double getYVelocity() { return robot.pinpointDriver.getVelX(); }
 
     private double getDistanceToGoal(){
         double goalX, goalY;
 
-
-
         if (rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE) {
             goalX = rConstants.FieldConstants.blueGoalXPosition;
             goalY = rConstants.FieldConstants.blueGoalYPosition;
@@ -526,25 +549,9 @@ public class WorldsRebuildTeleOp extends OpMode {
             goalY = rConstants.FieldConstants.redGoalYPosition;
         }
 
-
-        double dx = goalX - getFieldX();
-        double dy = goalY - getFieldY();
+        double dx = goalX - getYPose();
+        double dy = goalY - getXPose();
         return Math.sqrt(dx * dx + dy * dy);
-    }
-    private double getAngleToGoal() {
-        double goalX, goalY;
-
-        if (rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE) {
-            goalX = rConstants.FieldConstants.blueGoalXPosition;
-            goalY = rConstants.FieldConstants.blueGoalYPosition;
-        } else {
-            goalX = rConstants.FieldConstants.redGoalXPosition;
-            goalY = rConstants.FieldConstants.redGoalYPosition;
-        }
-
-        double dx = goalX - getFieldX();
-        double dy = goalY - getFieldY();
-        return Math.toDegrees(Math.atan2(dy, dx));
     }
 
 

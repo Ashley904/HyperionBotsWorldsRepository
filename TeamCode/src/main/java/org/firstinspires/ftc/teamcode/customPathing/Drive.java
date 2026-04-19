@@ -9,12 +9,7 @@ import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
 import org.firstinspires.ftc.teamcode.util.rConstants;
 
 public class Drive {
-    RobotHardwareMap robot;
-
-
-
-
-
+    private RobotHardwareMap robot;
     private Point targetPoint;
 
 
@@ -28,18 +23,15 @@ public class Drive {
 
 
     private SQUIDController headingSQUIDController = new SQUIDController();
-    private SQUIDController translationalSQUIDController = new SQUIDController();
+    private SQUIDController driveSQUIDController = new SQUIDController();
+    private SQUIDController strafeSQUIDController = new SQUIDController();
 
 
 
 
 
     private double headingErrorInRadians = 0.0;
-
-
-
-
-    double drive=0.0, turn=0.0, strafe=0.0;
+    private double drive=0.0, turn=0.0, strafe=0.0;
 
 
 
@@ -47,6 +39,13 @@ public class Drive {
 
     private ElapsedTime targetConfirmationTime = new ElapsedTime();
     private ElapsedTime overTimeProtectionTimer = new ElapsedTime();
+
+
+
+
+
+    public Drive(RobotHardwareMap robot){ this.robot = robot; }
+    public void setTargetPoint(Point point) { this.targetPoint = point; }
 
 
 
@@ -60,9 +59,26 @@ public class Drive {
         errorVector = errorVector.rotateBy(-currentRobotHeading);
 
         // Calculating Powers
-        turn = -headingSQUIDController.calculate(headingErrorInRadians, rConstants.AutonomousConstants.headingKSQ, rConstants.AutonomousConstants.headingKd);
-        drive = translationalSQUIDController.calculate(errorVector.getX(), rConstants.AutonomousConstants.translationalKSQ, rConstants.AutonomousConstants.translationalKD);
-        strafe = -translationalSQUIDController.calculate(errorVector.getY(), rConstants.AutonomousConstants.translationalKSQ, rConstants.AutonomousConstants.translationalKD);
+        turn = -headingSQUIDController.calculate(
+                headingErrorInRadians,
+                rConstants.AutonomousConstants.headingKSQ,
+                rConstants.AutonomousConstants.headingKd);
+
+        drive = driveSQUIDController.calculate(
+                errorVector.getX(),
+                rConstants.AutonomousConstants.translationalKSQ,
+                rConstants.AutonomousConstants.translationalKD);
+
+        strafe = -strafeSQUIDController.calculate(
+                errorVector.getY(),
+                rConstants.AutonomousConstants.translationalKSQ,
+                rConstants.AutonomousConstants.translationalKD);
+
+
+
+
+
+        setDriveTrainMotorPowers(drive, strafe, turn);
     }
 
 
@@ -77,7 +93,7 @@ public class Drive {
         return distanceSquared <= rConstants.AutonomousConstants.radiusTolerance;
     }
 
-    public void trajectoryStartSequence() {targetConfirmationTime.reset(); overTimeProtectionTimer.reset(); }
+    public void trajectoryStartSequence() { targetConfirmationTime.reset(); overTimeProtectionTimer.reset(); }
 
     public boolean isAtTarget(double currentRobotXPosition, double currentRobotYPosition){
         if(!isInRadius(currentRobotXPosition, currentRobotYPosition)
@@ -113,10 +129,6 @@ public class Drive {
         robot.front_right_motor.setPower(frontRightMotorPower);
         robot.back_right_motor.setPower(backRightMotorPower);
     }
-
-
-
-
     public void stopMotor(){
         robot.front_left_motor.setPower(0);
         robot.back_left_motor.setPower(0);

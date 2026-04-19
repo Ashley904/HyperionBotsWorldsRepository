@@ -10,22 +10,11 @@ public class TurretSubsystem extends SubsystemBase {
     private final RobotHardwareMap robot;
     private final PDController pdController;
 
+    private double targetTurretAngle;
 
-
-
-
-    private int targetTurretAngle;
-
-
-
-
-
-    private static final double ticksPerRevolution = 537.7;
-    private static final double gearRatio = 172.0 / 35.0;
-    private static final double ticksPerRadian = (ticksPerRevolution / (2 * Math.PI)) * gearRatio;
-
-
-
+    private static final double ticksPerRevolution = 384.5;
+    private static final double gearRatio = 86.0 / 34.0;
+    private static final double ticksPerDegree = (ticksPerRevolution * gearRatio) / 360.0;
 
     public TurretSubsystem(RobotHardwareMap robot){
         this.robot = robot;
@@ -35,28 +24,23 @@ public class TurretSubsystem extends SubsystemBase {
         );
     }
 
-
-
-
-
     @Override
     public void periodic(){
-        double adjustment = pdController.calculate(getCurrentTurretPosition(), getTargetTurretPosition(), -rConstants.TurretConstants.maxTurretPower, rConstants.TurretConstants.maxTurretPower);
-        double clampedAdjustment = Math.max(
-                -rConstants.TurretConstants.maxTurretPower,
-                Math.min(rConstants.TurretConstants.maxTurretPower, adjustment)
-        );
+        pdController.setGains(rConstants.TurretConstants.turretKp, rConstants.TurretConstants.turretKd);
 
-        robot.turretMotor.setPower(clampedAdjustment);
+        double currentTicks = robot.turretMotor.getCurrentPosition();
+        double targetTicks = targetTurretAngle * ticksPerDegree;
+
+        double error = targetTicks - currentTicks;
+
+        double output = pdController.calculate(0, error, -rConstants.TurretConstants.maxTurretPower, rConstants.TurretConstants.maxTurretPower);
+
+        robot.turretMotor.setPower(output);
     }
 
+    public void setTurretAngle(double targetTurretAngle) { this.targetTurretAngle = targetTurretAngle; }
 
-
-
-
-    // Helper Functions
-    public void setTurretAngle(int targetTurretAngle) { this.targetTurretAngle = targetTurretAngle; }
-
+    public double getTargetAngle() { return targetTurretAngle; }
     public double getCurrentTurretPosition() { return robot.turretMotor.getCurrentPosition(); }
-    public double getTargetTurretPosition() { return Math.toRadians(targetTurretAngle) * ticksPerRadian;}
+    public double getTargetTurretPosition() { return targetTurretAngle * ticksPerDegree; }
 }

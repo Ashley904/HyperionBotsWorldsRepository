@@ -23,14 +23,16 @@ public class ShootArtefactsCMD extends SequentialCommandGroup {
                 new ConditionalCommand(
                         new InstantCommand(),
                         new SequentialCommandGroup(
+                                new InstantCommand(() ->  intakeSubsystem.setState(IntakeSubsystem.IntakeState.Idling)),
+                                new WaitCommand(200),
                                 // 1st Shot
                                 new InstantCommand(() -> {
                                     spindexerSubsystem.setSpindexerState(SpindexerSubsystem.SpindexerState.Shooting);
-                                    intakeSubsystem.setState(IntakeSubsystem.IntakeState.Idling);
                                     spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.shootingPositions[0]);
                                     spindexerSubsystem.startPositionCheck(0);
                                 }),
                                 new WaitUntilCommand(spindexerSubsystem::spindexerPositionalReached),
+                                new WaitCommand(50),
                                 new TransferCMD(robot, spindexerSubsystem, 1),
 
                                 // 2nd Shot

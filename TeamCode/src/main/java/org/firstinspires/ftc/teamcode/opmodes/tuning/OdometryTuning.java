@@ -40,9 +40,8 @@ public class OdometryTuning extends OpMode {
         robot = new RobotHardwareMap();
         robot.init(hardwareMap);
 
-        robot.pinpointDriver.recalibrateIMU();
         robot.pinpointDriver.resetPosAndIMU();
-
+        robot.pinpointDriver.recalibrateIMU();
         robot.pinpointDriver.setPosition(startingPose);
 
         telemetry.addData("Status: ", "Ready to start...");
@@ -57,8 +56,8 @@ public class OdometryTuning extends OpMode {
     public void loop(){
         robot.pinpointDriver.update();
 
-        double currentXPosition = robot.pinpointDriver.getPosY(DistanceUnit.INCH);
-        double currentYPosition = robot.pinpointDriver.getPosX(DistanceUnit.INCH);
+        double currentXPosition = 72.0 + robot.pinpointDriver.getPosY(DistanceUnit.INCH);
+        double currentYPosition = 72.0 + robot.pinpointDriver.getPosX(DistanceUnit.INCH);
         double currentHeading = robot.pinpointDriver.getHeading(AngleUnit.RADIANS);
 
         double currentXVelocity = robot.pinpointDriver.getVelY();

@@ -1,254 +1,306 @@
 package org.firstinspires.ftc.teamcode.opmodes.autonomous;
 
+import com.acmerobotics.dashboard.FtcDashboard;
+import com.acmerobotics.dashboard.config.Config;
+import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.arcrobotics.ftclib.command.CommandBase;
 import com.arcrobotics.ftclib.command.CommandScheduler;
 import com.arcrobotics.ftclib.command.SequentialCommandGroup;
-import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.BezierLine;
-import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.PathChain;
+import com.arcrobotics.ftclib.gamepad.ButtonReader;
+import com.arcrobotics.ftclib.gamepad.GamepadEx;
+import com.arcrobotics.ftclib.gamepad.GamepadKeys;
+import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 
-import org.firstinspires.ftc.teamcode.util.AutonomousConstants;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.teamcode.customPathing.Drive;
+import org.firstinspires.ftc.teamcode.customPathing.Point;
+import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
+import org.firstinspires.ftc.teamcode.util.rConstants;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@Autonomous(name = "Configurable Autonomous", group = "Autonomous")
+@Config
+@Autonomous(name = "Worlds Configurable Autonomous", group = "Autonomous")
 public class ConfigurableAutonomous extends OpMode {
 
     // ── Enums ──
-    private enum Alliance { BLUE, RED }
-    private enum Zone { CLOSE, FAR }
-    private enum Phase { SELECT_ALLIANCE, SELECT_ZONE, BUILD_ACTIONS, CONFIRM, READY }
-    private enum ActionType {
-        SHOOT, GATE_COLLECT, COLLECT_CLOSE_SET,
-        COLLECT_MIDDLE_SET, COLLECT_FAR_SET
-    }
+    private enum Phase { SelectingAlliance, SelectingStartingZone, ConstructingActions, Confirming, Ready }
+    private enum ActionType { ShootCloseZone, ShootFarZone, CollectCloseSet, CollectMiddleSet, CollectFarSet, GateCollect }
 
-    // ── State ──
-    private Phase currentPhase = Phase.SELECT_ALLIANCE;
-    private Alliance selectedAlliance = null;
-    private Zone selectedZone = null;
-    private List<ActionType> actionQueue = new ArrayList<>();
+
+
+
 
     // ── Hardware ──
-    private Follower follower;
-
-    // ── Constants ──
-    private AutonomousConstants.BlueCloseZone15SoloAutoConstants p;
-
-    // ── Debounce ──
-    private boolean prevX, prevCircle, prevTriangle;
-    private boolean prevDpadLeft, prevDpadUp, prevDpadRight;
-    private boolean prevBack, prevStart;
+    private RobotHardwareMap robot;
+    private Drive drive;
 
 
-    // ═══════════════════════════════════════════
-    //  FOLLOW PATH COMMAND
-    // ═══════════════════════════════════════════
 
-    private class FollowPathCommand extends CommandBase {
-        private final PathChain path;
-        private boolean started = false;
 
-        public FollowPathCommand(PathChain path) {
-            this.path = path;
-        }
 
-        @Override
-        public void initialize() {
-            follower.followPath(path);
-            started = true;
-        }
+    // ── Live Pose ──
+    private double currentX = 0.0;
+    private double currentY = 0.0;
+    private double currentHeading = 0.0;
 
-        @Override
-        public void execute() {
-            follower.update();
-        }
 
-        @Override
-        public boolean isFinished() {
-            return started && !follower.isBusy();
-        }
+
+
+
+    // ── State ──
+    private Phase currentPhase = Phase.SelectingAlliance;
+    private boolean isCloseZone = true;
+    private List<ActionType> actionQueue = new ArrayList<>();
+
+
+
+
+
+    // ── Button Readers ──
+    private ButtonReader selectBlueAllianceButtonReader, selectRedAllianceButtonReader;
+    private ButtonReader selectCloseZoneButtonReader, selectFarZoneButtonReader;
+    private ButtonReader shootCloseZoneButtonReader, shootFarZoneButtonReader;
+    private ButtonReader collectCloseSetButtonReader, collectMiddleSetButtonReader, collectFarSetButtonReader;
+    private ButtonReader gateCollectButtonReader;
+    private ButtonReader undoButtonReader, confirmButtonReader;
+
+
+
+
+
+    // Drive To Point Command
+    private class DriveToPointCommand extends CommandBase {
+        private final Point targetPoint;
+
+        public DriveToPointCommand(Point targetPoint) { this.targetPoint = targetPoint; }
+
+        @Override public void initialize() { drive.setTargetPoint(targetPoint); drive.trajectoryStartSequence(); }
+        @Override public void execute() { drive.driveToTargetPoint(currentHeading, currentX, currentY); }
+        @Override public boolean isFinished() { return drive.isAtTarget(currentX, currentY); }
+        @Override public void end(boolean interrupted) { drive.stopMotor(); }
     }
 
 
-    // ═══════════════════════════════════════════
-    //  OP MODE METHODS
-    // ═══════════════════════════════════════════
+
+
+
+
 
     @Override
     public void init() {
-        p = new AutonomousConstants.BlueCloseZone15SoloAutoConstants();
+        robot = new RobotHardwareMap();
+        robot.init(hardwareMap);
+        robot.pinpointDriver.recalibrateIMU();
+        robot.pinpointDriver.setPosition(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 0));
+
+        drive = new Drive(robot);
+        for (LynxModule hub : hardwareMap.getAll(LynxModule.class)) { hub.setBulkCachingMode(LynxModule.BulkCachingMode.AUTO); }
+        telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
+
         CommandScheduler.getInstance().reset();
-        // TODO: Initialize your follower
-        // follower = new Follower(hardwareMap);
+        InitializeButtonReaders();
+
+        telemetry.addData("Status", "Initialization Complete... Ready to Start!");
+        telemetry.update();
     }
+
+
+
+
 
     @Override
     public void init_loop() {
+        ReadAllButtons();
+
         switch (currentPhase) {
-            case SELECT_ALLIANCE:
-                handleAllianceSelection();
-                break;
-            case SELECT_ZONE:
-                handleZoneSelection();
-                break;
-            case BUILD_ACTIONS:
-                handleActionBuilding();
-                break;
-            case CONFIRM:
-                handleConfirmation();
-                break;
-            case READY:
-                break;
+            case SelectingAlliance: HandleAllianceSelection(); break;
+            case SelectingStartingZone: HandleZoneSelection(); break;
+            case ConstructingActions: HandleActionBuilding(); break;
+            case Confirming: HandleConfirmation(); break;
+            case Ready: break;
         }
-        displayStatus();
-        updateDebounce();
+
+        DisplayStatus();
     }
+
+
+
+
 
     @Override
-    public void start() {
-        Pose startPose = getAlliancePose(p.startingPose);
-        follower.setStartingPose(startPose);
+    public void start() { CommandScheduler.getInstance().schedule(BuildAutoSequence()); }
 
-        SequentialCommandGroup autoSequence = buildAutoSequence();
-        CommandScheduler.getInstance().schedule(autoSequence);
-    }
+
+
+
 
     @Override
     public void loop() {
+        robot.pinpointDriver.update();
+        currentX = rConstants.FieldConstants.startingXPosition + robot.pinpointDriver.getPosX(DistanceUnit.INCH);
+        currentY = rConstants.FieldConstants.startingYPosition + robot.pinpointDriver.getPosY(DistanceUnit.INCH);
+        currentHeading = Math.toDegrees(robot.pinpointDriver.getHeading(AngleUnit.RADIANS));
+
         CommandScheduler.getInstance().run();
+
+        telemetry.addData("Current X Position: ", "%.1f", currentX);
+        telemetry.addData("Current Y Position: ", "%.1f", currentY);
+        telemetry.addData("Heading", "%.2f", Math.toDegrees(currentHeading));
+        telemetry.update();
     }
+
+
+
+
 
     @Override
-    public void stop() {
-        CommandScheduler.getInstance().reset();
-    }
+    public void stop() { drive.stopMotor(); CommandScheduler.getInstance().reset(); }
 
 
-    // ═══════════════════════════════════════════
-    //  INIT LOOP HANDLERS
-    // ═══════════════════════════════════════════
 
-    private void handleAllianceSelection() {
-        if (risingEdge(gamepad1.x, prevX)) {
-            selectedAlliance = Alliance.BLUE;
-            currentPhase = Phase.SELECT_ZONE;
-        }
-        if (risingEdge(gamepad1.b, prevCircle)) {
-            selectedAlliance = Alliance.RED;
-            currentPhase = Phase.SELECT_ZONE;
-        }
-    }
-
-    private void handleZoneSelection() {
-        if (risingEdge(gamepad1.dpad_left, prevDpadLeft)) {
-            selectedZone = Zone.CLOSE;
-            actionQueue.add(ActionType.SHOOT);
-            currentPhase = Phase.BUILD_ACTIONS;
-        }
-        if (risingEdge(gamepad1.dpad_right, prevDpadRight)) {
-            selectedZone = Zone.FAR;
-            actionQueue.add(ActionType.SHOOT);
-            currentPhase = Phase.BUILD_ACTIONS;
-        }
-    }
-
-    private void handleActionBuilding() {
-        if (risingEdge(gamepad1.x, prevX))
-            actionQueue.add(ActionType.SHOOT);
-        if (risingEdge(gamepad1.triangle, prevTriangle))
-            actionQueue.add(ActionType.GATE_COLLECT);
-        if (risingEdge(gamepad1.dpad_left, prevDpadLeft))
-            actionQueue.add(ActionType.COLLECT_CLOSE_SET);
-        if (risingEdge(gamepad1.dpad_up, prevDpadUp))
-            actionQueue.add(ActionType.COLLECT_MIDDLE_SET);
-        if (risingEdge(gamepad1.dpad_right, prevDpadRight))
-            actionQueue.add(ActionType.COLLECT_FAR_SET);
-
-        if (risingEdge(gamepad1.back, prevBack)) {
-            if (actionQueue.size() > 1)
-                actionQueue.remove(actionQueue.size() - 1);
-        }
-        if (risingEdge(gamepad1.start, prevStart))
-            currentPhase = Phase.CONFIRM;
-    }
-
-    private void handleConfirmation() {
-        if (risingEdge(gamepad1.start, prevStart))
-            currentPhase = Phase.READY;
-        if (risingEdge(gamepad1.back, prevBack))
-            currentPhase = Phase.BUILD_ACTIONS;
-    }
 
 
     // ═══════════════════════════════════════════
-    //  BALL COUNTER
+    //  BUTTON READERS
     // ═══════════════════════════════════════════
 
-    private int calculateTotalBalls() {
-        int count = 0;
-        for (ActionType action : actionQueue) {
-            if (action == ActionType.SHOOT) {
-                count += 3;
-            }
-        }
-        return count;
+    private void InitializeButtonReaders() {
+        GamepadEx gamepad1EX = new GamepadEx(gamepad1);
+
+        selectBlueAllianceButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.selectBlueAlliance);
+        selectRedAllianceButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.selectRedAlliance);
+        selectCloseZoneButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.selectCloseZoneStartingPosition);
+        selectFarZoneButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.selectFarZoneStartingPosition);
+        shootCloseZoneButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.shootCloseZoneMapping);
+        shootFarZoneButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.shootFarZoneMapping);
+        collectCloseSetButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.collectCloseSetMapping);
+        collectMiddleSetButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.collectMiddleSetMapping);
+        collectFarSetButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.collectFarSetMapping);
+        gateCollectButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.gateCollectMapping);
+        undoButtonReader = new ButtonReader(gamepad1EX, GamepadKeys.Button.BACK);
+        confirmButtonReader = new ButtonReader(gamepad1EX, GamepadKeys.Button.START);
     }
 
-    private int calculateRunningBalls(int upToIndex) {
-        int count = 0;
-        for (int i = 0; i <= upToIndex; i++) {
-            if (actionQueue.get(i) == ActionType.SHOOT) {
-                count += 3;
-            }
-        }
-        return count;
-    }
-
-    private int calculateShootNumber(int upToIndex) {
-        int count = 0;
-        for (int i = 0; i <= upToIndex; i++) {
-            if (actionQueue.get(i) == ActionType.SHOOT) {
-                count++;
-            }
-        }
-        return count;
+    private void ReadAllButtons() {
+        selectBlueAllianceButtonReader.readValue();  selectRedAllianceButtonReader.readValue();
+        selectCloseZoneButtonReader.readValue();     selectFarZoneButtonReader.readValue();
+        shootCloseZoneButtonReader.readValue();      shootFarZoneButtonReader.readValue();
+        collectCloseSetButtonReader.readValue();     collectMiddleSetButtonReader.readValue();
+        collectFarSetButtonReader.readValue();       gateCollectButtonReader.readValue();
+        undoButtonReader.readValue();                confirmButtonReader.readValue();
     }
 
 
-    // ═══════════════════════════════════════════
-    //  BUILD COMMAND SEQUENCE
-    // ═══════════════════════════════════════════
 
-    private SequentialCommandGroup buildAutoSequence() {
+
+
+
+    private void HandleAllianceSelection() { // Selecting Alliance Color
+        if (selectBlueAllianceButtonReader.wasJustPressed()) { rConstants.Enums.selectedAlliance = rConstants.Enums.Alliance.BLUE; currentPhase = Phase.SelectingAlliance; }
+        if (selectRedAllianceButtonReader.wasJustPressed()) { rConstants.Enums.selectedAlliance = rConstants.Enums.Alliance.RED; currentPhase = Phase.SelectingAlliance; }
+    }
+
+    private void HandleZoneSelection() { // Selecting Starting Zone
+        if (selectCloseZoneButtonReader.wasJustPressed()) {
+            isCloseZone = true;
+            actionQueue.add(ActionType.ShootCloseZone);
+            currentPhase = Phase.ConstructingActions;
+        }
+        if (selectFarZoneButtonReader.wasJustPressed()) {
+            isCloseZone = false;
+            actionQueue.add(ActionType.ShootFarZone);
+            currentPhase = Phase.ConstructingActions;
+        }
+    }
+
+
+
+
+
+
+    private void HandleActionBuilding() {
+        if (shootCloseZoneButtonReader.wasJustPressed()) actionQueue.add(ActionType.ShootCloseZone);
+        if (shootFarZoneButtonReader.wasJustPressed()) actionQueue.add(ActionType.ShootFarZone);
+        if (gateCollectButtonReader.wasJustPressed()) actionQueue.add(ActionType.GateCollect);
+        if (collectCloseSetButtonReader.wasJustPressed()) actionQueue.add(ActionType.CollectCloseSet);
+        if (collectMiddleSetButtonReader.wasJustPressed()) actionQueue.add(ActionType.CollectMiddleSet);
+        if (collectFarSetButtonReader.wasJustPressed()) actionQueue.add(ActionType.CollectFarSet);
+
+        if (undoButtonReader.wasJustPressed() && actionQueue.size() > 1) actionQueue.remove(actionQueue.size() - 1);
+        if (confirmButtonReader.wasJustPressed()) currentPhase = Phase.Confirming;
+    }
+    private void HandleConfirmation() {
+        if (confirmButtonReader.wasJustPressed()) currentPhase = Phase.Ready;
+        if (undoButtonReader.wasJustPressed()) currentPhase = Phase.ConstructingActions;
+    }
+
+
+
+
+
+
+    // Building Command Sequence
+    private SequentialCommandGroup BuildAutoSequence() {
         List<CommandBase> commands = new ArrayList<>();
-        Pose trackingPose = getAlliancePose(p.startingPose);
+        boolean isBlue = rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE;
 
         for (ActionType action : actionQueue) {
             switch (action) {
-                case SHOOT:
-                    commands.add(buildShootCommands(trackingPose));
-                    trackingPose = getAlliancePose(p.scorePreloadPose);
+                case ShootCloseZone:
+                    commands.add(new DriveToPointCommand(isBlue
+                            ? rConstants.AutonomousPositionConstants.scoreCloseZoneBlueSide
+                            : rConstants.AutonomousPositionConstants.scoreCloseZoneRedSide));
+                    // TODO: add shoot commands
                     break;
-                case GATE_COLLECT:
-                    commands.add(buildGateCollectCommands(trackingPose));
-                    trackingPose = getAlliancePose(p.gateCollect1);
+
+                case ShootFarZone:
+                    commands.add(new DriveToPointCommand(isBlue
+                            ? rConstants.AutonomousPositionConstants.scoreFarZoneBlueSide
+                            : rConstants.AutonomousPositionConstants.scoreFarZoneRedSide));
+                    // TODO: add shoot command
                     break;
-                case COLLECT_CLOSE_SET:
-                    commands.add(buildCollectCloseSetCommands(trackingPose));
-                    trackingPose = getAlliancePose(p.collectCloseSetPose2);
+
+                case GateCollect:
+                    commands.add(new DriveToPointCommand(isBlue
+                            ? rConstants.AutonomousPositionConstants.gateCollectBlueSide
+                            : rConstants.AutonomousPositionConstants.gateCollectRedSide));
+                    // TODO: add intake command
                     break;
-                case COLLECT_MIDDLE_SET:
-                    commands.add(buildCollectMiddleSetCommands(trackingPose));
-                    trackingPose = getAlliancePose(p.collectMiddleSetPose2);
+
+                case CollectCloseSet:
+                    commands.add(new DriveToPointCommand(isBlue
+                            ? rConstants.AutonomousPositionConstants.collectThirdSet1BlueSide
+                            : rConstants.AutonomousPositionConstants.collectThirdSet2BlueSide));
+                    commands.add(new DriveToPointCommand(isBlue
+                            ? rConstants.AutonomousPositionConstants.collectThirdSet1RedSide
+                            : rConstants.AutonomousPositionConstants.collectThirdSet2RedSide));
+                    // TODO: add intake command
                     break;
-                case COLLECT_FAR_SET:
-                    commands.add(buildCollectFarSetCommands(trackingPose));
-                    trackingPose = getAlliancePose(p.collectFarSetPose2);
+
+                case CollectMiddleSet:
+                    commands.add(new DriveToPointCommand(isBlue
+                            ? rConstants.AutonomousPositionConstants.collectSecondSet1BlueSide
+                            : rConstants.AutonomousPositionConstants.collectSecondSet2BlueSide));
+                    commands.add(new DriveToPointCommand(isBlue
+                            ? rConstants.AutonomousPositionConstants.collectSecondSet1RedSide
+                            : rConstants.AutonomousPositionConstants.collectSecondSet2RedSide));
+                    // TODO: add intake command
+                    break;
+
+                case CollectFarSet:
+                    commands.add(new DriveToPointCommand(isBlue
+                            ? rConstants.AutonomousPositionConstants.collectFirstSet1BlueSide
+                            : rConstants.AutonomousPositionConstants.collectFirstSet2BlueSide));
+                    commands.add(new DriveToPointCommand(isBlue
+                            ? rConstants.AutonomousPositionConstants.collectFirstSet1RedSide
+                            : rConstants.AutonomousPositionConstants.collectFirstSet2RedSide));
+                    // TODO: add intake command
                     break;
             }
         }
@@ -257,174 +309,59 @@ public class ConfigurableAutonomous extends OpMode {
     }
 
 
-    // ═══════════════════════════════════════════
-    //  ACTION COMMAND BUILDERS
-    // ═══════════════════════════════════════════
-
-    private SequentialCommandGroup buildShootCommands(Pose fromPose) {
-        Pose scorePose = getAlliancePose(p.scorePreloadPose);
-
-        PathChain path = follower.pathBuilder()
-                .addPath(new BezierLine(
-                        new Pose(fromPose.getX(), fromPose.getY()),
-                        new Pose(scorePose.getX(), scorePose.getY())))
-                .setLinearHeadingInterpolation(fromPose.getHeading(), scorePose.getHeading())
-                .build();
-
-        return new SequentialCommandGroup(
-                new FollowPathCommand(path)
-                // TODO: Add shoot command
-        );
-    }
-
-    private SequentialCommandGroup buildGateCollectCommands(Pose fromPose) {
-        Pose gatePose = getAlliancePose(p.gateCollect1);
-
-        PathChain path = follower.pathBuilder()
-                .addPath(new BezierLine(
-                        new Pose(fromPose.getX(), fromPose.getY()),
-                        new Pose(gatePose.getX(), gatePose.getY())))
-                .setLinearHeadingInterpolation(fromPose.getHeading(), gatePose.getHeading())
-                .build();
-
-        return new SequentialCommandGroup(
-                new FollowPathCommand(path)
-                // TODO: Add intake command
-        );
-    }
-
-    private SequentialCommandGroup buildCollectCloseSetCommands(Pose fromPose) {
-        Pose pose1 = getAlliancePose(p.collectCloseSetPose1);
-        Pose pose2 = getAlliancePose(p.collectCloseSetPose2);
-
-        PathChain driveTo = follower.pathBuilder()
-                .addPath(new BezierLine(
-                        new Pose(fromPose.getX(), fromPose.getY()),
-                        new Pose(pose1.getX(), pose1.getY())))
-                .setLinearHeadingInterpolation(fromPose.getHeading(), pose1.getHeading())
-                .build();
-
-        PathChain collect = follower.pathBuilder()
-                .addPath(new BezierLine(
-                        new Pose(pose1.getX(), pose1.getY()),
-                        new Pose(pose2.getX(), pose2.getY())))
-                .setConstantHeadingInterpolation(pose2.getHeading())
-                .build();
-
-        return new SequentialCommandGroup(
-                new FollowPathCommand(driveTo),
-                new FollowPathCommand(collect)
-                // TODO: Add intake command
-        );
-    }
-
-    private SequentialCommandGroup buildCollectMiddleSetCommands(Pose fromPose) {
-        Pose pose1 = getAlliancePose(p.collectMiddleSetPose1);
-        Pose pose2 = getAlliancePose(p.collectMiddleSetPose2);
-
-        PathChain driveTo = follower.pathBuilder()
-                .addPath(new BezierLine(
-                        new Pose(fromPose.getX(), fromPose.getY()),
-                        new Pose(pose1.getX(), pose1.getY())))
-                .setLinearHeadingInterpolation(fromPose.getHeading(), pose1.getHeading())
-                .build();
-
-        PathChain collect = follower.pathBuilder()
-                .addPath(new BezierLine(
-                        new Pose(pose1.getX(), pose1.getY()),
-                        new Pose(pose2.getX(), pose2.getY())))
-                .setConstantHeadingInterpolation(pose2.getHeading())
-                .build();
-
-        return new SequentialCommandGroup(
-                new FollowPathCommand(driveTo),
-                new FollowPathCommand(collect)
-                // TODO: Add intake command
-        );
-    }
-
-    private SequentialCommandGroup buildCollectFarSetCommands(Pose fromPose) {
-        Pose pose1 = getAlliancePose(p.collectFareSetPose1);
-        Pose pose2 = getAlliancePose(p.collectFarSetPose2);
-
-        PathChain driveTo = follower.pathBuilder()
-                .addPath(new BezierLine(
-                        new Pose(fromPose.getX(), fromPose.getY()),
-                        new Pose(pose1.getX(), pose1.getY())))
-                .setLinearHeadingInterpolation(fromPose.getHeading(), pose1.getHeading())
-                .build();
-
-        PathChain collect = follower.pathBuilder()
-                .addPath(new BezierLine(
-                        new Pose(pose1.getX(), pose1.getY()),
-                        new Pose(pose2.getX(), pose2.getY())))
-                .setConstantHeadingInterpolation(pose2.getHeading())
-                .build();
-
-        return new SequentialCommandGroup(
-                new FollowPathCommand(driveTo),
-                new FollowPathCommand(collect)
-                // TODO: Add intake command
-        );
-    }
 
 
-    // ═══════════════════════════════════════════
-    //  TELEMETRY
-    // ═══════════════════════════════════════════
 
-    private void displayStatus() {
+    // Telemetry Dispalying
+    private void DisplayStatus() {
         telemetry.setAutoClear(true);
 
         switch (currentPhase) {
-            case SELECT_ALLIANCE:
-                telemetry.addLine("╔══════════════════════════╗");
-                telemetry.addLine("║   AUTONOMOUS  BUILDER    ║");
-                telemetry.addLine("╚══════════════════════════╝");
+            case SelectingAlliance:
+                telemetry.addLine("=========AUTONOMOUS CONSTRUCTOR==========");
                 telemetry.addLine("");
                 telemetry.addLine("  Select Alliance:");
-                telemetry.addLine("    [SQUARE]  BLUE");
-                telemetry.addLine("    [CIRCLE]  RED");
+                telemetry.addLine("    [X]  BLUE");
+                telemetry.addLine("    [B]  RED");
                 break;
 
-            case SELECT_ZONE:
-                telemetry.addLine("╔══════════════════════════╗");
-                telemetry.addLine("║   AUTONOMOUS  BUILDER    ║");
-                telemetry.addLine("╚══════════════════════════╝");
+            case SelectingStartingZone:
+                telemetry.addLine("==========AUTONOMOUS CONSTRUCTOR==========");
                 telemetry.addLine("");
-                telemetry.addData("  Alliance", selectedAlliance.name());
+                telemetry.addData("  Alliance", rConstants.Enums.selectedAlliance.name());
                 telemetry.addLine("");
                 telemetry.addLine("  Select Starting Zone:");
-                telemetry.addLine("    [DPAD LEFT]  Close Zone");
-                telemetry.addLine("    [DPAD RIGHT] Far Zone");
+                telemetry.addLine("    [DPAD DOWN]  Close Zone");
+                telemetry.addLine("    [DPAD UP]    Far Zone");
                 break;
 
-            case BUILD_ACTIONS:
-                displayActionQueue();
+            case ConstructingActions:
+                DisplayActionQueue();
                 telemetry.addLine("");
                 telemetry.addLine("-- ADD ACTIONS -----------------");
-                telemetry.addLine("  [SQUARE]     Shoot");
-                telemetry.addLine("  [TRIANGLE]   Gate Collect");
+                telemetry.addLine("  [A]          Shoot Close Zone");
+                telemetry.addLine("  [Y]          Shoot Far Zone");
+                telemetry.addLine("  [DPAD UP]    Gate Collect");
                 telemetry.addLine("  [DPAD LEFT]  Collect Close Set");
-                telemetry.addLine("  [DPAD UP]    Collect Middle Set");
+                telemetry.addLine("  [DPAD DOWN]  Collect Middle Set");
                 telemetry.addLine("  [DPAD RIGHT] Collect Far Set");
                 telemetry.addLine("");
-                telemetry.addLine("  [SHARE]   Undo Last");
-                telemetry.addLine("  [OPTIONS] Confirm & Lock In");
+                telemetry.addLine("  [BACK]   Undo Last Action");
+                telemetry.addLine("  [START]  Confirm & Lock In All Actions");
                 break;
 
-            case CONFIRM:
-                displayActionQueue();
+            case Confirming:
+                DisplayActionQueue();
                 telemetry.addLine("");
                 telemetry.addLine("== READY TO LOCK IN? ==========");
-                telemetry.addLine("  [OPTIONS] CONFIRM");
-                telemetry.addLine("  [SHARE]   Go Back & Edit");
+                telemetry.addLine("  [START] CONFIRM");
+                telemetry.addLine("  [BACK]  Go Back & Edit");
                 break;
 
-            case READY:
-                displayActionQueue();
+            case Ready:
+                DisplayActionQueue();
                 telemetry.addLine("");
-                telemetry.addLine("== LOCKED IN ===================");
+                telemetry.addLine("== AUTONOMOUS LOCKED IN ===================");
                 telemetry.addLine("  Press PLAY to start");
                 break;
         }
@@ -432,34 +369,27 @@ public class ConfigurableAutonomous extends OpMode {
         telemetry.update();
     }
 
-    private void displayActionQueue() {
-        int totalBalls = calculateTotalBalls();
-
-        telemetry.addLine("╔══════════════════════════╗");
-        telemetry.addLine("║   AUTONOMOUS  BUILDER    ║");
-        telemetry.addLine("╚══════════════════════════╝");
+    private void DisplayActionQueue() {
+        telemetry.addLine("==========AUTONOMOUS CONSTRUCTOR=========");
         telemetry.addLine("");
-        telemetry.addData("  Alliance", selectedAlliance.name());
-        telemetry.addData("  Start Zone", selectedZone.name());
+        telemetry.addData("  Alliance", rConstants.Enums.selectedAlliance.name());
+        telemetry.addData("  Start Zone", isCloseZone ? "Close Zone" : "Far Zone");
         telemetry.addLine("");
         telemetry.addLine("-- ACTION QUEUE ----------------");
+
+        int shootCount = 0;
+        int ballCount = 0;
 
         for (int i = 0; i < actionQueue.size(); i++) {
             ActionType action = actionQueue.get(i);
 
-            if (action == ActionType.SHOOT) {
-                int shootNum = calculateShootNumber(i);
-                int ballsSoFar = calculateRunningBalls(i);
-                telemetry.addLine("  " + (i + 1) + ". Shoot #" + shootNum + "  [+3 | " + ballsSoFar + " total]");
-                telemetry.addLine("       -> Drive to Score Position");
-                telemetry.addLine("       -> Shoot 3 Balls");
+            if (action == ActionType.ShootCloseZone || action == ActionType.ShootFarZone) {
+                shootCount++;
+                ballCount += 3;
+                String zone = action == ActionType.ShootCloseZone ? "Close" : "Far";
+                telemetry.addLine("  " + (i + 1) + ". Shoot #" + shootCount + " (" + zone + ")  [+3 | " + ballCount + " total]");
             } else {
                 telemetry.addLine("  " + (i + 1) + ". " + getActionName(action));
-
-                String[] steps = getActionSteps(action);
-                for (String step : steps) {
-                    telemetry.addLine("       " + step);
-                }
             }
         }
 
@@ -469,69 +399,18 @@ public class ConfigurableAutonomous extends OpMode {
         }
 
         telemetry.addLine("--------------------------------");
-        telemetry.addData("  Total Actions", actionQueue.size());
-        telemetry.addData("  Total Balls", totalBalls + " balls");
+        telemetry.addData("  Total Balls", ballCount);
     }
 
     private String getActionName(ActionType action) {
         switch (action) {
-            case SHOOT:              return "Shoot";
-            case GATE_COLLECT:       return "Gate Collect";
-            case COLLECT_CLOSE_SET:  return "Collect Close Set";
-            case COLLECT_MIDDLE_SET: return "Collect Middle Set";
-            case COLLECT_FAR_SET:    return "Collect Far Set";
-            default:                 return action.name();
+            case ShootCloseZone:    return "Shoot (Close)";
+            case ShootFarZone:      return "Shoot (Far)";
+            case GateCollect:       return "Gate Collect";
+            case CollectCloseSet:   return "Collect Close Set";
+            case CollectMiddleSet:  return "Collect Middle Set";
+            case CollectFarSet:     return "Collect Far Set";
+            default:                return action.name();
         }
-    }
-
-    private String[] getActionSteps(ActionType action) {
-        switch (action) {
-            case GATE_COLLECT:
-                return new String[]{
-                        "-> Drive to Gate",
-                        "-> Intake from Gate"
-                };
-            case COLLECT_CLOSE_SET:
-                return new String[]{
-                        "-> Drive to Close Set",
-                        "-> Drive Forward + Intake"
-                };
-            case COLLECT_MIDDLE_SET:
-                return new String[]{
-                        "-> Drive to Middle Set",
-                        "-> Drive Forward + Intake"
-                };
-            case COLLECT_FAR_SET:
-                return new String[]{
-                        "-> Drive to Far Set",
-                        "-> Drive Forward + Intake"
-                };
-            default:
-                return new String[]{};
-        }
-    }
-
-
-    // ═══════════════════════════════════════════
-    //  UTILITY
-    // ═══════════════════════════════════════════
-
-    private Pose getAlliancePose(Pose bluePose) {
-        return selectedAlliance == Alliance.RED ? bluePose.mirror() : bluePose;
-    }
-
-    private boolean risingEdge(boolean current, boolean previous) {
-        return current && !previous;
-    }
-
-    private void updateDebounce() {
-        prevX = gamepad1.x;
-        prevCircle = gamepad1.b;
-        prevTriangle = gamepad1.triangle;
-        prevDpadLeft = gamepad1.dpad_left;
-        prevDpadUp = gamepad1.dpad_up;
-        prevDpadRight = gamepad1.dpad_right;
-        prevBack = gamepad1.back;
-        prevStart = gamepad1.start;
     }
 }

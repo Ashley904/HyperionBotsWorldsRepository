@@ -72,8 +72,8 @@ public class ShooterTuning extends OpMode {
 
 
 
-        double fieldX = 72.0 + robot.pinpointDriver.getPosX(DistanceUnit.INCH);
-        double fieldY = 72.0 + robot.pinpointDriver.getPosY(DistanceUnit.INCH);
+        double fieldX = 72.0 + robot.pinpointDriver.getPosY(DistanceUnit.INCH);
+        double fieldY = 72.0 + robot.pinpointDriver.getPosX(DistanceUnit.INCH);
 
         double dx = rConstants.FieldConstants.blueGoalXPosition - fieldX;
         double dy = rConstants.FieldConstants.blueGoalYPosition - fieldY;

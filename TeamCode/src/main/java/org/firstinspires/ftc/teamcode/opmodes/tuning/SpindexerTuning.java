@@ -61,6 +61,7 @@ public class SpindexerTuning extends OpMode {
             robot.rightSpindexerServo.setPosition(rightSpindexerServoPosition);
         }
 
+        telemetry.addData("Current Spindexer Encoder Position: ", robot.spindexerEncoder.getCurrentPosition());
         telemetry.addData("Sync servo status: ", syncServos);
         telemetry.update();
     }

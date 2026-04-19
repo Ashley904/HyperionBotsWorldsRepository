@@ -4,6 +4,8 @@ import com.acmerobotics.dashboard.config.Config;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 
+import org.firstinspires.ftc.teamcode.customPathing.Point;
+
 public class rConstants {
     @Config
     public static class FieldConstants{
@@ -14,8 +16,8 @@ public class rConstants {
 
 
 
-        public static double blueGoalXPosition = 133.0, blueGoalYPosition = 141.0;
-        public static double redGoalXPosition = 128.0, redGoalYPosition = 15.0;
+        public static double blueGoalXPosition = 134.0, blueGoalYPosition = 133.0;
+        public static double redGoalXPosition = 132.0, redGoalYPosition = 8.0;
 
 
 
@@ -54,7 +56,7 @@ public class rConstants {
 
     @Config
     public static class AllianceHeadingOffsets{
-        public static double blueAllianceHeadingOffset = Math.toRadians(-90);
+        public static double blueAllianceHeadingOffset = Math.toRadians(0);
         public static double redAllianceHeadingOffset = Math.toRadians(90);
     }
 
@@ -119,7 +121,7 @@ public class rConstants {
 
 
         public static double strafePodOffset = 0.79;
-        public static double forwardPodOffset = -7.68; //
+        public static double forwardPodOffset = -7.68;
     }
 
 
@@ -166,14 +168,14 @@ public class rConstants {
         public static double disabledSpeed = 0.0;
         public static double intakingSpeed = 1.0;
         public static double reversingSpeed = -1.0;
-        public static double idlingSpeed = 0.8;
+        public static double idlingSpeed = 0.4;
 
 
 
 
 
-        public static double currentAlert = 6.0;
-        public static double jamVelocityAlert = 1050.0;
+        public static double currentAlert = 7.0;
+        public static double jamVelocityAlert = 800.0;
         public static double jamTimeConfirmation = 150;
     }
 
@@ -185,27 +187,27 @@ public class rConstants {
     public static class SpindexerConstants{
         public static String leftSpindexerServoName = "leftSpindexerServo";
         public static String rightSpindexerServoName = "rightSpindexerServo";
-        public static String spindexerEncoderName = DriveTrainConstants.frontLeftMotorName;
+        public static String spindexerEncoderName = DriveTrainConstants.backLeftMotorName;
 
 
 
 
 
-        public static double[] intakingPositions = {0.1325, 0.305, 0.475};
-        public static double[] shootingPositions = {0.22, 0.39, 0.565};
-        public static double[] encoderShootingPositions = {1410, 4125, 6915};
+        public static double[] intakingPositions = {0.075, 0.3, 0.53};
+        public static double[] shootingPositions = {0.18, 0.41, 0.65};
+        public static double[] encoderShootingPositions = {1360, 4100, 6900};
 
 
 
 
-        public static double spindexerVelocityCheckDelay = 0;
-        public static double minimumPeakVelocity = 2000;
+        public static double spindexerVelocityCheckDelay = 50;
+        public static double minimumPeakVelocity = 1000;
         public static double decelerationTriggerRatio = 0.1;
 
 
 
 
-        public static double positionalTolerance = 2250;
+        public static double positionalTolerance = 2000;
     }
 
 
@@ -228,13 +230,13 @@ public class rConstants {
 
 
 
-        public static boolean leftFlyWheelMotorInverted = true;
-        public static boolean rightFlyWheelMotorInverted = false;
+        public static boolean leftFlyWheelMotorInverted = false;
+        public static boolean rightFlyWheelMotorInverted = true;
         public static boolean floatModeEnabled=false;
 
 
 
-        public static double flyWheelKs=0.06, flyWheelKf=0.00034, flyWheelKp=0.0014;
+        public static double flyWheelKs=0.19, flyWheelKf=0.000365, flyWheelKp=0.0025;
         public static double nominalVoltage=13.4;
 
 
@@ -242,7 +244,7 @@ public class rConstants {
 
 
 
-        public static double maximumFlyWheelVelocity=2600;
+        public static double maximumFlyWheelVelocity=1900;
         public static double velocityReachedTolerance=30.0;
 
 
@@ -272,8 +274,15 @@ public class rConstants {
 
 
 
-        public static double turretKp=0.0, turretKd=0.0;
-        public static double maxTurretPower=1.0;
+        public static double turretKp=0.004, turretKd=0.325;
+        public static double maxTurretPower=0.9;
+
+
+
+
+
+        public static double turretMaxLeftAngle = 125, turretMaxRightAngle = -125;
+        public static double turretOffset = 5;
     }
 
 
@@ -290,14 +299,14 @@ public class rConstants {
 
 
 
-        public static double homePosition = 0.34;
-        public static double transferPosition = 0.55;
+        public static double homePosition = 0.44;
+        public static double transferPosition = 0.3;
 
 
 
 
-        public static long servoRiseTime = 90;
-        public static long servoHomingTime = 130;
+        public static long servoRiseTime = 110;
+        public static long servoHomingTime = 75;
     }
 
 
@@ -316,6 +325,26 @@ public class rConstants {
         public static GamepadKeys.Button reverseIntake = GamepadKeys.Button.LEFT_STICK_BUTTON;
         public static GamepadKeys.Button shootArtefacts = GamepadKeys.Button.A;
         public static GamepadKeys.Button indexSpindexer = GamepadKeys.Button.RIGHT_BUMPER;
+
+
+
+
+
+        // Autonomous Constructing Controls
+        public static GamepadKeys.Button selectBlueAlliance = GamepadKeys.Button.X;
+        public static GamepadKeys.Button selectRedAlliance = GamepadKeys.Button.B;
+
+
+        public static GamepadKeys.Button selectCloseZoneStartingPosition = GamepadKeys.Button.DPAD_DOWN;
+        public static GamepadKeys.Button selectFarZoneStartingPosition = GamepadKeys.Button.DPAD_UP;
+
+
+        public static GamepadKeys.Button shootCloseZoneMapping = GamepadKeys.Button.A;
+        public static GamepadKeys.Button shootFarZoneMapping = GamepadKeys.Button.Y;
+        public static GamepadKeys.Button collectCloseSetMapping = GamepadKeys.Button.DPAD_LEFT;
+        public static GamepadKeys.Button collectMiddleSetMapping = GamepadKeys.Button.DPAD_DOWN;
+        public static GamepadKeys.Button collectFarSetMapping = GamepadKeys.Button.DPAD_RIGHT;
+        public static GamepadKeys.Button gateCollectMapping = GamepadKeys.Button.DPAD_UP;
     }
 
 
@@ -338,9 +367,47 @@ public class rConstants {
 
 
 
-        public static double distanceSensorOccupiedThreshold = 4.0; //C<
+        public static double distanceSensorOccupiedThreshold = 10.0; //CM
         public static double leftSpindexerColorSensorOccupiedThreshold = 0.0;
         public static double rightSpindexerColorSensorOccupiedThreshold = 0.0;
     }
 
+
+
+
+
+    @Config
+    public static class AutonomousPositionConstants {
+
+        // ── Blue Alliance Positions ──
+        public static Point scoreCloseZoneBlueSide = new Point(0, 0, 0);
+        public static Point scoreFarZoneBlueSide   = new Point(0, 0, 0);
+
+        public static Point gateCollectBlueSide = new Point(0, 0, 0);
+
+        public static Point collectThirdSet1BlueSide = new Point(0, 0, 0);
+        public static Point collectThirdSet2BlueSide = new Point(0, 0, 0);
+
+        public static Point collectSecondSet1BlueSide = new Point(0, 0, 0);
+        public static Point collectSecondSet2BlueSide = new Point(0, 0, 0);
+
+        public static Point collectFirstSet1BlueSide = new Point(0, 0, 0);
+        public static Point collectFirstSet2BlueSide = new Point(0, 0, 0);
+
+
+        // ── Red Alliance Positions ──
+        public static Point scoreCloseZoneRedSide = new Point(0, 0, 0);
+        public static Point scoreFarZoneRedSide   = new Point(0, 0, 0);
+
+        public static Point gateCollectRedSide = new Point(0, 0, 0);
+
+        public static Point collectThirdSet1RedSide = new Point(0, 0, 0);
+        public static Point collectThirdSet2RedSide = new Point(0, 0, 0);
+
+        public static Point collectSecondSet1RedSide = new Point(0, 0, 0);
+        public static Point collectSecondSet2RedSide = new Point(0, 0, 0);
+
+        public static Point collectFirstSet1RedSide = new Point(0, 0, 0);
+        public static Point collectFirstSet2RedSide = new Point(0, 0, 0);
+    }
 }

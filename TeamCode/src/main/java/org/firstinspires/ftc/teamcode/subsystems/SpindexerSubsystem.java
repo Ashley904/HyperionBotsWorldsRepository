@@ -22,7 +22,7 @@ public class SpindexerSubsystem extends SubsystemBase{
 
 
     private boolean spindexerStartDelayActive = false;
-    private boolean spindexerVelocityIsZeroed = false;
+    private boolean spindexerVelocityIsZeroed = true;
     private boolean spindexerVelocityTimerRunning = false;
     private boolean hasPeaked = false;
     private double peakVelocity = 0;
@@ -114,7 +114,6 @@ public class SpindexerSubsystem extends SubsystemBase{
 
     private void updateSpindexerVelocityZeroedStatus(){
         if(!spindexerStartDelayActive || spindexerStartDelayTimer.milliseconds() < rConstants.SpindexerConstants.spindexerVelocityCheckDelay) return;
-
         double currentVelocity = Math.abs(cachedEncoderVelocity);
 
         if(currentVelocity > peakVelocity){

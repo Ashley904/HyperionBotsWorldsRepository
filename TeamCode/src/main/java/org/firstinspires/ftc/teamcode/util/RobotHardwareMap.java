@@ -70,15 +70,20 @@ public class RobotHardwareMap {
     public void init(HardwareMap hardwareMap){
         this.hardwareMap = hardwareMap;
 
+        initializeDriveTrain(hardwareMap);
         initializeTurret(hardwareMap);
         initializeIntake(hardwareMap);
         initializeShooter(hardwareMap);
         initializeTransfer(hardwareMap);
         initializeSpindexer(hardwareMap);
-        initializeDriveTrain(hardwareMap);
         initializeColorSensors(hardwareMap);
         initializePinpointDriver(hardwareMap);
         initializeDistanceSensors(hardwareMap);
+
+        // Share the back left motor reference for spindexer encoder reading
+        spindexerEncoder = back_left_motor;
+        spindexerEncoder.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+        spindexerEncoder.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
     }
 
 
@@ -107,6 +112,8 @@ public class RobotHardwareMap {
         turretMotor = hwMap.get(DcMotorEx.class, rConstants.TurretConstants.turretMotorName);
         turretMotor.setDirection(rConstants.TurretConstants.turretMotorInverted ? DcMotorEx.Direction.REVERSE : DcMotorEx.Direction.FORWARD);
         turretMotor.setZeroPowerBehavior(rConstants.TurretConstants.floatModeEnabled ? DcMotor.ZeroPowerBehavior.FLOAT : DcMotor.ZeroPowerBehavior.BRAKE);
+        turretMotor.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+        turretMotor.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
     }
 
 
@@ -126,10 +133,7 @@ public class RobotHardwareMap {
 
 
     private void initializeSpindexer(HardwareMap hardwareMap){
-        spindexerEncoder = hardwareMap.get(DcMotorEx.class, rConstants.SpindexerConstants.spindexerEncoderName);
-        spindexerEncoder.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
-        spindexerEncoder.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
-
+        // No separate encoder init here — shared reference is set in init()
         leftSpindexerServo = hardwareMap.get(Servo.class, rConstants.SpindexerConstants.leftSpindexerServoName);
         rightSpindexerServo = hardwareMap.get(Servo.class, rConstants.SpindexerConstants.rightSpindexerServoName);
     }
@@ -151,9 +155,10 @@ public class RobotHardwareMap {
 
     private void initializeTransfer(HardwareMap hardwareMap){
         leftTransferServo = hardwareMap.get(Servo.class, rConstants.TransferConstants.leftTransferServoName);
+        leftTransferServo.setDirection(Servo.Direction.REVERSE);
 
         rightTransferServo = hardwareMap.get(Servo.class, rConstants.TransferConstants.rightTransferServoName);
-        rightTransferServo.setDirection(Servo.Direction.REVERSE);
+        rightTransferServo.setDirection(Servo.Direction.FORWARD);
     }
 
 

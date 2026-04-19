@@ -7,70 +7,44 @@ import org.firstinspires.ftc.teamcode.util.rConstants;
 public class SpindexerSensorsSubsystem {
     private final RobotHardwareMap robot;
 
-
-
-
-
     private final boolean[] slotOccupied = new boolean[3];
-
-
-
-
 
     public SpindexerSensorsSubsystem(RobotHardwareMap robotHardwareMap){
         this.robot = robotHardwareMap;
     }
 
-
-
-
-
     public void readSensors(){
         int frontSlot = getCurrentFrontSlot();
-        int leftColorSlot = (frontSlot + 1) % 3;
-        int rightColorSlot = (frontSlot + 2) % 3;
 
-        double leftDistanceSensorReading = robot.leftDistanceSensor.getDistance(DistanceUnit.CM);
-        double rightDistanceSensorReading = robot.rightDistanceSensor.getDistance(DistanceUnit.CM);
-        slotOccupied[frontSlot] = leftDistanceSensorReading < rConstants.SensorConstants.distanceSensorOccupiedThreshold
-                || rightDistanceSensorReading < rConstants.SensorConstants.distanceSensorOccupiedThreshold;
+        double leftReading = robot.leftDistanceSensor.getDistance(DistanceUnit.CM);
+        double rightReading = robot.rightDistanceSensor.getDistance(DistanceUnit.CM);
 
+        slotOccupied[frontSlot] = leftReading < rConstants.SensorConstants.distanceSensorOccupiedThreshold
+                || rightReading < rConstants.SensorConstants.distanceSensorOccupiedThreshold;
 
-
-        double leftSpindexerColorSensorReading = robot.leftSpindexerColorSensor.getDistance(DistanceUnit.CM);
-        slotOccupied[leftColorSlot] = leftSpindexerColorSensorReading < rConstants.SensorConstants.leftSpindexerColorSensorOccupiedThreshold;
-
-
-
-        double rightSpindexerColorSensorReading = robot.rightSpindexerColorSensor.getDistance(DistanceUnit.CM);
-        slotOccupied[rightColorSlot] = rightSpindexerColorSensorReading < rConstants.SensorConstants.rightSpindexerColorSensorOccupiedThreshold;
+        // Other two slots are not updated — they retain whatever state
+        // was set when they were last in front of the distance sensors.
     }
-
-
-
-
 
     // Helper Functions
     public boolean spindexerIsFull() { return slotOccupied[0] && slotOccupied[1] && slotOccupied[2]; }
     public boolean spindexerIsEmpty() { return !slotOccupied[0] && !slotOccupied[1] && !slotOccupied[2]; }
     public boolean isSlotOccupied(int slot) { return slotOccupied[slot]; }
 
-
     public int getBallCount(){
         int ballCount = 0;
         for (boolean occupied : slotOccupied){
-            if(occupied) ballCount ++;
+            if(occupied) ballCount++;
         }
-
         return ballCount;
     }
+
     public int getFirstEmptySlot() {
         for (int i = 0; i < slotOccupied.length; i++) {
             if (!slotOccupied[i]) return i;
         }
         return -1;
     }
-
 
     public int getCurrentFrontSlot(){
         double currentPosition = robot.spindexerEncoder.getCurrentPosition();
@@ -84,7 +58,6 @@ public class SpindexerSensorsSubsystem {
                 closestSlot = i;
             }
         }
-
         return closestSlot;
     }
 }
