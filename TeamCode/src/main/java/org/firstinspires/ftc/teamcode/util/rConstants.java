@@ -169,7 +169,7 @@ public class rConstants {
 
 
         public static double currentAlert = 7.0;
-        public static double jamVelocityAlert = 800.0;
+        public static double jamVelocityAlert = 600.0;
         public static double jamTimeConfirmation = 150;
     }
 
@@ -187,8 +187,8 @@ public class rConstants {
 
 
 
-        public static double[] intakingPositions = {0.165, 0.385, 0.622};
-        public static double[] shootingPositions = {0.275, 0.5, 0.73};
+        public static double[] intakingPositions = {0.26, 0.490, 0.727};
+        public static double[] shootingPositions = {0.385, 0.62, 0.85};
         public static double[] encoderShootingPositions = {1320, 4000, 6775};
 
 
@@ -201,7 +201,7 @@ public class rConstants {
 
 
 
-        public static double positionalTolerance = 1900;
+        public static double positionalTolerance = 1750;
     }
 
 
@@ -230,7 +230,7 @@ public class rConstants {
 
 
 
-        public static double flyWheelKs=0.19, flyWheelKf=0.000365, flyWheelKp=0.0025;
+        public static double flyWheelKs=0.19, flyWheelKf=0.00039, flyWheelKp=0.0025;
         public static double nominalVoltage=13.4;
 
 
@@ -251,7 +251,7 @@ public class rConstants {
 
 
 
-        public static double minimumHoodPosition=0, maximumHoodPosition=0.775;
+        public static double minimumHoodPosition=0.5, maximumHoodPosition=0.88;
     }
 
 
@@ -294,13 +294,13 @@ public class rConstants {
 
 
         public static double homePosition = 0.4;
-        public static double transferPosition = 0.51;
+        public static double transferPosition = 0.525;
 
 
 
 
-        public static long servoRiseTime = 90;
-        public static long servoHomingTime = 100;
+        public static long servoRiseTime = 125;
+        public static long servoHomingTime = 65;
     }
 
 
@@ -375,35 +375,35 @@ public class rConstants {
     public static class AutonomousPositionConstants {
 
         // ── Blue Alliance Positions ──
-        public static Point blueCloseZoneStartingPosition = new Point(131.0, 109.0, 0.0);
-        public static Point scoreCloseZoneBlueSide = new Point(79.0, 82.0, 43.0);
-        public static Point scoreFarZoneBlueSide   = new Point(12.0, 82.0, 23.0);
+        public static Point blueCloseZoneStartingPosition = new Point(10.0, 36.0, -180);
+        public static Point scoreCloseZoneBlueSide = new Point(70.0, 61.0, -140.0);
+        public static Point scoreFarZoneBlueSide   = new Point(126.0, 60.0, -156.0);
 
-        public static Point gateCollectBlueSide = new Point(0, 0, 0);
+        public static Point gateCollectBlueSide = new Point(89.0, 21.0, -127.0);
 
-        public static Point collectThirdSet1BlueSide = new Point(30.0, 83.0, 90.0);
-        public static Point collectThirdSet2BlueSide = new Point(30.0, 114.0, 90.0);
+        public static Point collectThirdSet1BlueSide = new Point(63.0, 60.0, -90.0);
+        public static Point collectThirdSet2BlueSide = new Point(63.0, 33.0, -90.0);
 
-        public static Point collectSecondSet1BlueSide = new Point(53.0, 85.0, 90.0);
-        public static Point collectSecondSet2BlueSide = new Point(53.0, 114.0, 90.0);
+        public static Point collectSecondSet1BlueSide = new Point(88.0, 59.0, -90.0);
+        public static Point collectSecondSet2BlueSide = new Point(88.0, 24.0, -90.0);
 
-        public static Point collectFirstSet1BlueSide = new Point(78.0, 85.0, 90.0);
-        public static Point collectFirstSet2BlueSide = new Point(78.0, 113.0, 90.0);
+        public static Point collectFirstSet1BlueSide = new Point(109.0, 56.0, -90.0);
+        public static Point collectFirstSet2BlueSide = new Point(109.0, 24.0, -90.0);
 
         // ── Red Alliance Positions ──
-        public static Point redCloseZoneStartingPosition = new Point(9, 106, -180);
-        public static Point scoreCloseZoneRedSide = new Point(47.0, 85.0, 135.0);
-        public static Point scoreFarZoneRedSide   = new Point(126.0, 89.0, 161.0);
+        public static Point redCloseZoneStartingPosition = new Point(12.0, 108.0, 180.0);
+        public static Point scoreCloseZoneRedSide = new Point(57.0, 85.0, 140.0);
+        public static Point scoreFarZoneRedSide   = new Point(121.0, 82.0, 156.0);
 
         public static Point gateCollectRedSide = new Point(73, 129.25,  120.0);
 
-        public static Point collectThirdSet1RedSide = new Point(44.0, 103.0, 90.0);
-        public static Point collectThirdSet2RedSide = new Point(44.0, 130.0, 90.0);
+        public static Point collectThirdSet1RedSide = new Point(45.0, 104.0, 90.0);
+        public static Point collectThirdSet2RedSide = new Point(45.0, 130.0, 90.0);
 
-        public static Point collectSecondSet1RedSide = new Point(69.15, 100.0, 90.0);
-        public static Point collectSecondSet2RedSide = new Point(69.15, 135.0, 90.0);
+        public static Point collectSecondSet1RedSide = new Point(71.0, 101.0, 90.0);
+        public static Point collectSecondSet2RedSide = new Point(71.0, 137.0, 90.0);
 
-        public static Point collectFirstSet1RedSide = new Point(92.0, 104.0, 90.0);
+        public static Point collectFirstSet1RedSide = new Point(92.0, 101.0, 90.0);
         public static Point collectFirstSet2RedSide = new Point(92.0, 135.0, 90.0);
     }
 }

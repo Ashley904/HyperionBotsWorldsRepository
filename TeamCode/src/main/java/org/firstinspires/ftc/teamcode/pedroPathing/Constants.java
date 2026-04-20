@@ -31,16 +31,16 @@ public class Constants {
             .useSecondaryTranslationalPIDF(false)
             .translationalPIDFSwitch(4)
             .headingPIDFCoefficients(new PIDFCoefficients(
-                    2.1,
+                    1.6,
                     0.0,
-                    0.05,
+                    0.06,
                     0.018
             ))
             .useSecondaryHeadingPIDF(false)
             .drivePIDFCoefficients(new FilteredPIDFCoefficients(
-                    0.0225,
+                    0.018,
                     0.0,
-                    0.001,
+                    0.0025,
                     0.6,
                     0.0825
             ))

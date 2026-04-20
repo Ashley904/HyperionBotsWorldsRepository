@@ -464,12 +464,11 @@ public class WorldsRebuildTeleOp extends OpMode {
     }
     private void InitializeCalibrationPoints() {
         calibrationPoints.clear();
-        calibrationPoints.add(new CalibrationPoints(30.0,  1150,  0));
-        calibrationPoints.add(new CalibrationPoints(50.0,  1175,  0));
-        calibrationPoints.add(new CalibrationPoints(65.0,  1255,  0));
-        calibrationPoints.add(new CalibrationPoints(85.0,  1300,  0));
-        calibrationPoints.add(new CalibrationPoints(110.0,  1450,  0));
-        calibrationPoints.add(new CalibrationPoints(125.0,  1540,  0));
+        calibrationPoints.add(new CalibrationPoints(36.0,  1110.0,  0.88));
+        calibrationPoints.add(new CalibrationPoints(61.0,  1230.0,  0.88));
+        calibrationPoints.add(new CalibrationPoints(88.0,  1350.0,  0.71));
+        calibrationPoints.add(new CalibrationPoints(132.0,  1670,  0.75));
+        calibrationPoints.add(new CalibrationPoints(150.0,  1750,  0.7));
         calibrationPoints.sort(Comparator.comparingDouble(a -> a.distanceToGoal));
     }
     private void CalculateShooterParameters() {
