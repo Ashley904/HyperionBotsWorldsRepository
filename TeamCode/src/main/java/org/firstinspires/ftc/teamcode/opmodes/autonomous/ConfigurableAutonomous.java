@@ -1,23 +1,34 @@
 package org.firstinspires.ftc.teamcode.opmodes.autonomous;
 
-import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
-import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.arcrobotics.ftclib.command.CommandBase;
 import com.arcrobotics.ftclib.command.CommandScheduler;
+import com.arcrobotics.ftclib.command.InstantCommand;
 import com.arcrobotics.ftclib.command.SequentialCommandGroup;
+import com.arcrobotics.ftclib.command.WaitCommand;
+import com.arcrobotics.ftclib.command.WaitUntilCommand;
 import com.arcrobotics.ftclib.gamepad.ButtonReader;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
+import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.BezierLine;
+import com.pedropathing.geometry.Pose;
+import com.pedropathing.paths.Path;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
-import org.firstinspires.ftc.teamcode.customPathing.Drive;
+import org.firstinspires.ftc.teamcode.commands.InitializeTransferCMD;
+import org.firstinspires.ftc.teamcode.commands.ShootArtefactsCMD;
 import org.firstinspires.ftc.teamcode.customPathing.Point;
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+import org.firstinspires.ftc.teamcode.subsystems.IntakeSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.ShooterSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.SpindexerSensorsSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.SpindexerSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.TurretSubsystem;
 import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
 import org.firstinspires.ftc.teamcode.util.rConstants;
 
@@ -28,7 +39,6 @@ import java.util.List;
 @Autonomous(name = "Worlds Configurable Autonomous", group = "Autonomous")
 public class ConfigurableAutonomous extends OpMode {
 
-    // ── Enums ──
     private enum Phase { SelectingAlliance, SelectingStartingZone, ConstructingActions, Confirming, Ready }
     private enum ActionType { ShootCloseZone, ShootFarZone, CollectCloseSet, CollectMiddleSet, CollectFarSet, GateCollect }
 
@@ -36,33 +46,32 @@ public class ConfigurableAutonomous extends OpMode {
 
 
 
-    // ── Hardware ──
     private RobotHardwareMap robot;
-    private Drive drive;
+    private Follower follower;
 
 
 
 
 
-    // ── Live Pose ──
-    private double currentX = 0.0;
-    private double currentY = 0.0;
-    private double currentHeading = 0.0;
+    private IntakeSubsystem intakeSubsystem;
+    private TurretSubsystem turretSubsystem;
+    private ShooterSubsystem shooterSubsystem;
+    private SpindexerSubsystem spindexerSubsystem;
+    private SpindexerSensorsSubsystem spindexerSensorsSubsystem;
 
 
 
 
 
-    // ── State ──
     private Phase currentPhase = Phase.SelectingAlliance;
     private boolean isCloseZone = true;
     private List<ActionType> actionQueue = new ArrayList<>();
+    private Pose trackingPose;
 
 
 
 
 
-    // ── Button Readers ──
     private ButtonReader selectBlueAllianceButtonReader, selectRedAllianceButtonReader;
     private ButtonReader selectCloseZoneButtonReader, selectFarZoneButtonReader;
     private ButtonReader shootCloseZoneButtonReader, shootFarZoneButtonReader;
@@ -74,39 +83,79 @@ public class ConfigurableAutonomous extends OpMode {
 
 
 
-    // Drive To Point Command
-    private class DriveToPointCommand extends CommandBase {
-        private final Point targetPoint;
+    int currentSpindexerIndex = 0;
 
-        public DriveToPointCommand(Point targetPoint) { this.targetPoint = targetPoint; }
 
-        @Override public void initialize() { drive.setTargetPoint(targetPoint); drive.trajectoryStartSequence(); }
-        @Override public void execute() { drive.driveToTargetPoint(currentHeading, currentX, currentY); }
-        @Override public boolean isFinished() { return drive.isAtTarget(currentX, currentY); }
-        @Override public void end(boolean interrupted) { drive.stopMotor(); }
+
+
+
+
+    // ═══════════════════════════════════════════
+    //  FOLLOW PATH COMMAND
+    // ═══════════════════════════════════════════
+
+    private class FollowPathCommand extends CommandBase {
+        private final Pose fromPose;
+        private final Pose toPose;
+        private final double maxSpeed;
+
+        public FollowPathCommand(Pose fromPose, Pose toPose) {
+            this.fromPose = fromPose;
+            this.toPose = toPose;
+            this.maxSpeed = 1.0;
+        }
+
+        public FollowPathCommand(Pose fromPose, Pose toPose, double maxSpeed) {
+            this.fromPose = fromPose;
+            this.toPose = toPose;
+            this.maxSpeed = maxSpeed;
+        }
+
+        @Override
+        public void initialize() {
+            Path path = new Path(new BezierLine(fromPose, toPose));
+            path.setLinearHeadingInterpolation(fromPose.getHeading(), toPose.getHeading());
+            follower.followPath(path);
+        }
+
+        @Override public void execute() {}
+        @Override public boolean isFinished() { return !follower.isBusy(); }
+        @Override public void end(boolean interrupted) {}
     }
 
 
 
 
 
-
+    // ═══════════════════════════════════════════
+    //  OP MODE METHODS
+    // ═══════════════════════════════════════════
 
     @Override
     public void init() {
         robot = new RobotHardwareMap();
         robot.init(hardwareMap);
         robot.pinpointDriver.recalibrateIMU();
-        robot.pinpointDriver.setPosition(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 0));
 
-        drive = new Drive(robot);
+        follower = Constants.createFollower(hardwareMap);
+
         for (LynxModule hub : hardwareMap.getAll(LynxModule.class)) { hub.setBulkCachingMode(LynxModule.BulkCachingMode.AUTO); }
-        telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
+
+        intakeSubsystem = new IntakeSubsystem(robot);
+        turretSubsystem = new TurretSubsystem(robot);
+        shooterSubsystem = new ShooterSubsystem(robot);
+        spindexerSubsystem = new SpindexerSubsystem(robot);
+        spindexerSensorsSubsystem = new SpindexerSensorsSubsystem(robot);
+
+        intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled);
+        shooterSubsystem.setHoodPosition(rConstants.ShooterConstants.minimumHoodPosition);
+        shooterSubsystem.setTargetVelocity(0);
 
         CommandScheduler.getInstance().reset();
+        CommandScheduler.getInstance().schedule(new InitializeTransferCMD(robot));
         InitializeButtonReaders();
 
-        telemetry.addData("Status", "Initialization Complete... Ready to Start!");
+        telemetry.addData("Status", "Initialization Complete...");
         telemetry.update();
     }
 
@@ -116,13 +165,20 @@ public class ConfigurableAutonomous extends OpMode {
 
     @Override
     public void init_loop() {
+        intakeSubsystem.periodic();
+        shooterSubsystem.periodic();
+        spindexerSubsystem.periodic();
+
+        spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.intakingPositions[0]);
+        CommandScheduler.getInstance().run();
+
         ReadAllButtons();
 
         switch (currentPhase) {
-            case SelectingAlliance: HandleAllianceSelection(); break;
-            case SelectingStartingZone: HandleZoneSelection(); break;
-            case ConstructingActions: HandleActionBuilding(); break;
-            case Confirming: HandleConfirmation(); break;
+            case SelectingAlliance:     HandleAllianceSelection();  break;
+            case SelectingStartingZone: HandleZoneSelection();      break;
+            case ConstructingActions:   HandleActionBuilding();     break;
+            case Confirming:            HandleConfirmation();       break;
             case Ready: break;
         }
 
@@ -134,7 +190,29 @@ public class ConfigurableAutonomous extends OpMode {
 
 
     @Override
-    public void start() { CommandScheduler.getInstance().schedule(BuildAutoSequence()); }
+    public void start() {
+        CommandScheduler.getInstance().reset();
+
+        robot.spindexerEncoder.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
+        robot.spindexerEncoder.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
+
+        boolean isBlue = rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE;
+        Pose startPose;
+        if (isCloseZone) {
+            startPose = pointToPose(isBlue
+                    ? rConstants.AutonomousPositionConstants.blueCloseZoneStartingPosition
+                    : rConstants.AutonomousPositionConstants.redCloseZoneStartingPosition);
+        } else {
+            startPose = pointToPose(isBlue
+                    ? rConstants.AutonomousPositionConstants.blueCloseZoneStartingPosition
+                    : rConstants.AutonomousPositionConstants.redCloseZoneStartingPosition);
+        }
+        follower.setStartingPose(startPose);
+        trackingPose = startPose;
+
+        spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.intakingPositions[0]);
+        CommandScheduler.getInstance().schedule(BuildAutoSequence());
+    }
 
 
 
@@ -142,16 +220,26 @@ public class ConfigurableAutonomous extends OpMode {
 
     @Override
     public void loop() {
-        robot.pinpointDriver.update();
-        currentX = rConstants.FieldConstants.startingXPosition + robot.pinpointDriver.getPosX(DistanceUnit.INCH);
-        currentY = rConstants.FieldConstants.startingYPosition + robot.pinpointDriver.getPosY(DistanceUnit.INCH);
-        currentHeading = Math.toDegrees(robot.pinpointDriver.getHeading(AngleUnit.RADIANS));
+        follower.update();
+
+        intakeSubsystem.periodic();
+        shooterSubsystem.periodic();
+        turretSubsystem.periodic();
+        spindexerSubsystem.periodic();
+
+        shooterSubsystem.setTargetVelocity(1200);
+
+        // Auto-indexing runs every loop while intake is on
+        SpindexerManaging();
 
         CommandScheduler.getInstance().run();
 
-        telemetry.addData("Current X Position: ", "%.1f", currentX);
-        telemetry.addData("Current Y Position: ", "%.1f", currentY);
-        telemetry.addData("Heading", "%.2f", Math.toDegrees(currentHeading));
+        telemetry.addData("X", "%.1f", follower.getPose().getX());
+        telemetry.addData("Y", "%.1f", follower.getPose().getY());
+        telemetry.addData("Heading", "%.1f", Math.toDegrees(follower.getPose().getHeading()));
+        telemetry.addData("Busy", follower.isBusy());
+        telemetry.addData("Intake State", intakeSubsystem.getState());
+        telemetry.addData("Spindexer State", spindexerSubsystem.getSpindexerState());
         telemetry.update();
     }
 
@@ -160,7 +248,39 @@ public class ConfigurableAutonomous extends OpMode {
 
 
     @Override
-    public void stop() { drive.stopMotor(); CommandScheduler.getInstance().reset(); }
+    public void stop() {
+        rConstants.FieldConstants.startingPose = new Pose(follower.getPose().getX(), follower.getPose().getY());
+        CommandScheduler.getInstance().reset();
+    }
+
+
+
+
+
+    // ═══════════════════════════════════════════
+    //  SPINDEXER AUTO-INDEXING
+    //  Runs every loop — when intake is on and a ball is detected
+    //  in the front slot, rotates the spindexer to the next empty slot
+    // ═══════════════════════════════════════════
+
+    private void SpindexerManaging(){
+        if(spindexerSubsystem.getSpindexerState() == SpindexerSubsystem.SpindexerState.Shooting
+                || intakeSubsystem.getState() != IntakeSubsystem.IntakeState.Intaking
+                || !spindexerSubsystem.spindexerPositionReached()) return;
+
+        double leftDistance = robot.leftDistanceSensor.getDistance(DistanceUnit.CM);
+        double rightDistance = robot.rightDistanceSensor.getDistance(DistanceUnit.CM);
+
+        boolean ballPresent = leftDistance <= rConstants.SensorConstants.distanceSensorOccupiedThreshold
+                || rightDistance <= rConstants.SensorConstants.distanceSensorOccupiedThreshold;
+
+        if(ballPresent){
+            currentSpindexerIndex = (currentSpindexerIndex + 1) % rConstants.SpindexerConstants.intakingPositions.length;
+            spindexerSubsystem.setSpindexerPosition(
+                    rConstants.SpindexerConstants.intakingPositions[currentSpindexerIndex]
+            );
+        }
+    }
 
 
 
@@ -173,18 +293,18 @@ public class ConfigurableAutonomous extends OpMode {
     private void InitializeButtonReaders() {
         GamepadEx gamepad1EX = new GamepadEx(gamepad1);
 
-        selectBlueAllianceButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.selectBlueAlliance);
-        selectRedAllianceButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.selectRedAlliance);
-        selectCloseZoneButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.selectCloseZoneStartingPosition);
-        selectFarZoneButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.selectFarZoneStartingPosition);
-        shootCloseZoneButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.shootCloseZoneMapping);
-        shootFarZoneButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.shootFarZoneMapping);
-        collectCloseSetButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.collectCloseSetMapping);
-        collectMiddleSetButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.collectMiddleSetMapping);
-        collectFarSetButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.collectFarSetMapping);
-        gateCollectButtonReader = new ButtonReader(gamepad1EX, rConstants.GamePadControls.gateCollectMapping);
-        undoButtonReader = new ButtonReader(gamepad1EX, GamepadKeys.Button.BACK);
-        confirmButtonReader = new ButtonReader(gamepad1EX, GamepadKeys.Button.START);
+        selectBlueAllianceButtonReader  = new ButtonReader(gamepad1EX, rConstants.GamePadControls.selectBlueAlliance);
+        selectRedAllianceButtonReader   = new ButtonReader(gamepad1EX, rConstants.GamePadControls.selectRedAlliance);
+        selectCloseZoneButtonReader     = new ButtonReader(gamepad1EX, rConstants.GamePadControls.selectCloseZoneStartingPosition);
+        selectFarZoneButtonReader       = new ButtonReader(gamepad1EX, rConstants.GamePadControls.selectFarZoneStartingPosition);
+        shootCloseZoneButtonReader      = new ButtonReader(gamepad1EX, rConstants.GamePadControls.shootCloseZoneMapping);
+        shootFarZoneButtonReader        = new ButtonReader(gamepad1EX, rConstants.GamePadControls.shootFarZoneMapping);
+        collectCloseSetButtonReader     = new ButtonReader(gamepad1EX, rConstants.GamePadControls.collectCloseSetMapping);
+        collectMiddleSetButtonReader    = new ButtonReader(gamepad1EX, rConstants.GamePadControls.collectMiddleSetMapping);
+        collectFarSetButtonReader       = new ButtonReader(gamepad1EX, rConstants.GamePadControls.collectFarSetMapping);
+        gateCollectButtonReader         = new ButtonReader(gamepad1EX, rConstants.GamePadControls.gateCollectMapping);
+        undoButtonReader                = new ButtonReader(gamepad1EX, GamepadKeys.Button.BACK);
+        confirmButtonReader             = new ButtonReader(gamepad1EX, GamepadKeys.Button.START);
     }
 
     private void ReadAllButtons() {
@@ -200,13 +320,16 @@ public class ConfigurableAutonomous extends OpMode {
 
 
 
+    // ═══════════════════════════════════════════
+    //  INIT LOOP HANDLERS
+    // ═══════════════════════════════════════════
 
-    private void HandleAllianceSelection() { // Selecting Alliance Color
-        if (selectBlueAllianceButtonReader.wasJustPressed()) { rConstants.Enums.selectedAlliance = rConstants.Enums.Alliance.BLUE; currentPhase = Phase.SelectingAlliance; }
-        if (selectRedAllianceButtonReader.wasJustPressed()) { rConstants.Enums.selectedAlliance = rConstants.Enums.Alliance.RED; currentPhase = Phase.SelectingAlliance; }
+    private void HandleAllianceSelection() {
+        if (selectBlueAllianceButtonReader.wasJustPressed()) { rConstants.Enums.selectedAlliance = rConstants.Enums.Alliance.BLUE; currentPhase = Phase.SelectingStartingZone; }
+        if (selectRedAllianceButtonReader.wasJustPressed()) { rConstants.Enums.selectedAlliance = rConstants.Enums.Alliance.RED; currentPhase = Phase.SelectingStartingZone; }
     }
 
-    private void HandleZoneSelection() { // Selecting Starting Zone
+    private void HandleZoneSelection() {
         if (selectCloseZoneButtonReader.wasJustPressed()) {
             isCloseZone = true;
             actionQueue.add(ActionType.ShootCloseZone);
@@ -219,11 +342,6 @@ public class ConfigurableAutonomous extends OpMode {
         }
     }
 
-
-
-
-
-
     private void HandleActionBuilding() {
         if (shootCloseZoneButtonReader.wasJustPressed()) actionQueue.add(ActionType.ShootCloseZone);
         if (shootFarZoneButtonReader.wasJustPressed()) actionQueue.add(ActionType.ShootFarZone);
@@ -235,6 +353,7 @@ public class ConfigurableAutonomous extends OpMode {
         if (undoButtonReader.wasJustPressed() && actionQueue.size() > 1) actionQueue.remove(actionQueue.size() - 1);
         if (confirmButtonReader.wasJustPressed()) currentPhase = Phase.Confirming;
     }
+
     private void HandleConfirmation() {
         if (confirmButtonReader.wasJustPressed()) currentPhase = Phase.Ready;
         if (undoButtonReader.wasJustPressed()) currentPhase = Phase.ConstructingActions;
@@ -244,64 +363,99 @@ public class ConfigurableAutonomous extends OpMode {
 
 
 
+    // ═══════════════════════════════════════════
+    //  BUILD COMMAND SEQUENCE
+    // ═══════════════════════════════════════════
 
-    // Building Command Sequence
     private SequentialCommandGroup BuildAutoSequence() {
         List<CommandBase> commands = new ArrayList<>();
         boolean isBlue = rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE;
 
         for (ActionType action : actionQueue) {
             switch (action) {
-                case ShootCloseZone:
-                    commands.add(new DriveToPointCommand(isBlue
+                case ShootCloseZone: {
+                    Pose target = pointToPose(isBlue
                             ? rConstants.AutonomousPositionConstants.scoreCloseZoneBlueSide
-                            : rConstants.AutonomousPositionConstants.scoreCloseZoneRedSide));
-                    // TODO: add shoot commands
+                            : rConstants.AutonomousPositionConstants.scoreCloseZoneRedSide);
+                    commands.add(new FollowPathCommand(trackingPose, target));
+                    commands.add(new ShootArtefactsCMD(spindexerSubsystem, intakeSubsystem, robot));
+                    commands.add(new WaitUntilCommand(() ->
+                            spindexerSubsystem.getSpindexerState() != SpindexerSubsystem.SpindexerState.Shooting));
+                    trackingPose = target;
                     break;
+                }
 
-                case ShootFarZone:
-                    commands.add(new DriveToPointCommand(isBlue
+                case ShootFarZone: {
+                    Pose target = pointToPose(isBlue
                             ? rConstants.AutonomousPositionConstants.scoreFarZoneBlueSide
-                            : rConstants.AutonomousPositionConstants.scoreFarZoneRedSide));
-                    // TODO: add shoot command
+                            : rConstants.AutonomousPositionConstants.scoreFarZoneRedSide);
+                    commands.add(new FollowPathCommand(trackingPose, target));
+                    commands.add(new ShootArtefactsCMD(spindexerSubsystem, intakeSubsystem, robot));
+                    commands.add(new WaitUntilCommand(() ->
+                            spindexerSubsystem.getSpindexerState() != SpindexerSubsystem.SpindexerState.Shooting));
+                    trackingPose = target;
                     break;
+                }
 
-                case GateCollect:
-                    commands.add(new DriveToPointCommand(isBlue
+                case GateCollect: {
+                    Pose target = pointToPose(isBlue
                             ? rConstants.AutonomousPositionConstants.gateCollectBlueSide
-                            : rConstants.AutonomousPositionConstants.gateCollectRedSide));
-                    // TODO: add intake command
+                            : rConstants.AutonomousPositionConstants.gateCollectRedSide);
+                    commands.add(new FollowPathCommand(trackingPose, target));
+                    commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking)));
+                    commands.add(new WaitCommand(1500));
+                    commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled)));
+                    trackingPose = target;
                     break;
+                }
 
-                case CollectCloseSet:
-                    commands.add(new DriveToPointCommand(isBlue
+                case CollectCloseSet: {
+                    Pose pose1 = pointToPose(isBlue
                             ? rConstants.AutonomousPositionConstants.collectThirdSet1BlueSide
-                            : rConstants.AutonomousPositionConstants.collectThirdSet2BlueSide));
-                    commands.add(new DriveToPointCommand(isBlue
-                            ? rConstants.AutonomousPositionConstants.collectThirdSet1RedSide
-                            : rConstants.AutonomousPositionConstants.collectThirdSet2RedSide));
-                    // TODO: add intake command
+                            : rConstants.AutonomousPositionConstants.collectThirdSet1RedSide);
+                    Pose pose2 = pointToPose(isBlue
+                            ? rConstants.AutonomousPositionConstants.collectThirdSet2BlueSide
+                            : rConstants.AutonomousPositionConstants.collectThirdSet2RedSide);
+                    commands.add(new FollowPathCommand(trackingPose, pose1));
+                    commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking)));
+                    commands.add(new FollowPathCommand(pose1, pose2, 1.0));
+                    commands.add(new WaitCommand(1000));
+                    commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled)));
+                    trackingPose = pose2;
                     break;
+                }
 
-                case CollectMiddleSet:
-                    commands.add(new DriveToPointCommand(isBlue
+                case CollectMiddleSet: {
+                    Pose pose1 = pointToPose(isBlue
                             ? rConstants.AutonomousPositionConstants.collectSecondSet1BlueSide
-                            : rConstants.AutonomousPositionConstants.collectSecondSet2BlueSide));
-                    commands.add(new DriveToPointCommand(isBlue
-                            ? rConstants.AutonomousPositionConstants.collectSecondSet1RedSide
-                            : rConstants.AutonomousPositionConstants.collectSecondSet2RedSide));
-                    // TODO: add intake command
+                            : rConstants.AutonomousPositionConstants.collectSecondSet1RedSide);
+                    Pose pose2 = pointToPose(isBlue
+                            ? rConstants.AutonomousPositionConstants.collectSecondSet2BlueSide
+                            : rConstants.AutonomousPositionConstants.collectSecondSet2RedSide);
+                    commands.add(new FollowPathCommand(trackingPose, pose1));
+                    commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking)));
+                    commands.add(new FollowPathCommand(pose1, pose2, 1.0));
+                    commands.add(new WaitCommand(1000));
+                    commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled)));
+                    trackingPose = pose2;
                     break;
+                }
 
-                case CollectFarSet:
-                    commands.add(new DriveToPointCommand(isBlue
+                case CollectFarSet: {
+                    Pose pose1 = pointToPose(isBlue
                             ? rConstants.AutonomousPositionConstants.collectFirstSet1BlueSide
-                            : rConstants.AutonomousPositionConstants.collectFirstSet2BlueSide));
-                    commands.add(new DriveToPointCommand(isBlue
-                            ? rConstants.AutonomousPositionConstants.collectFirstSet1RedSide
-                            : rConstants.AutonomousPositionConstants.collectFirstSet2RedSide));
-                    // TODO: add intake command
+                            : rConstants.AutonomousPositionConstants.collectFirstSet1RedSide);
+                    Pose pose2 = pointToPose(isBlue
+                            ? rConstants.AutonomousPositionConstants.collectFirstSet2BlueSide
+                            : rConstants.AutonomousPositionConstants.collectFirstSet2RedSide);
+                    commands.add(new FollowPathCommand(trackingPose, pose1));
+                    commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking)));
+                    commands.add(new FollowPathCommand(pose1, pose2, 1.0));
+                    commands.add(new WaitCommand(1000));
+                    commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled)));
+                    trackingPose = pose2;
                     break;
+                }
             }
         }
 
@@ -312,13 +466,28 @@ public class ConfigurableAutonomous extends OpMode {
 
 
 
-    // Telemetry Dispalying
+    // ═══════════════════════════════════════════
+    //  UTILITY
+    // ═══════════════════════════════════════════
+
+    private Pose pointToPose(Point point) {
+        return new Pose(point.getX(), point.getY(), Math.toRadians(point.getHeading()));
+    }
+
+
+
+
+
+    // ═══════════════════════════════════════════
+    //  TELEMETRY
+    // ═══════════════════════════════════════════
+
     private void DisplayStatus() {
         telemetry.setAutoClear(true);
 
         switch (currentPhase) {
             case SelectingAlliance:
-                telemetry.addLine("=========AUTONOMOUS CONSTRUCTOR==========");
+                telemetry.addLine("==========AUTONOMOUS CONSTRUCTOR==========");
                 telemetry.addLine("");
                 telemetry.addLine("  Select Alliance:");
                 telemetry.addLine("    [X]  BLUE");

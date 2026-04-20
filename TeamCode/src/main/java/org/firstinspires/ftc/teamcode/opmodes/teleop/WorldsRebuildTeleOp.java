@@ -16,7 +16,6 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.commands.InitializeTransferCMD;
 import org.firstinspires.ftc.teamcode.commands.ShootArtefactsCMD;
 import org.firstinspires.ftc.teamcode.controllers.PDController;
@@ -72,6 +71,8 @@ public class WorldsRebuildTeleOp extends OpMode {
     private ButtonReader shootArtefactsButtonReader;
     private ButtonReader indexSpindexerButtonReader;
 
+    private ButtonReader selectAllianceButtonReader;
+
 
 
 
@@ -93,7 +94,12 @@ public class WorldsRebuildTeleOp extends OpMode {
     private static final List<CalibrationPoints> calibrationPoints = new ArrayList<>();
     double dynamicTargetFlyWheelVelocity = 0.0, dynamicTargetHoodPosition = 0.0;
 
-    private Pose startingPose = new Pose(72.0, 72.0);
+
+
+
+
+    int currentSpindexerIndex = 0;
+
 
 
 
@@ -104,10 +110,14 @@ public class WorldsRebuildTeleOp extends OpMode {
         robot = new RobotHardwareMap();
         robot.init(hardwareMap);
         robot.pinpointDriver.recalibrateIMU();
-        robot.pinpointDriver.setPosition(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 0));
+
+
+
+
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(startingPose);
+        follower.setStartingPose(rConstants.FieldConstants.startingPose);
+
 
 
 
@@ -178,10 +188,23 @@ public class WorldsRebuildTeleOp extends OpMode {
         spindexerSubsystem.periodic();
 
         spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.intakingPositions[0]);
-
         CommandScheduler.getInstance().run();
 
-        telemetry.addData("Status: ", "Waiting for start...");
+
+
+
+        // Selecting Alliance
+        selectAllianceButtonReader.readValue();
+        if(selectAllianceButtonReader.wasJustPressed()){
+            if(rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE) { rConstants.Enums.selectedAlliance = rConstants.Enums.Alliance.RED; }
+            else if(rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.RED) { rConstants.Enums.selectedAlliance = rConstants.Enums.Alliance.BLUE; }
+        }
+
+
+
+
+        telemetry.addData("Selected Alliance: ", rConstants.Enums.selectedAlliance);
+        telemetry.addData("Cycle Alliance: ", "A Button");
         telemetry.update();
     }
 
@@ -192,9 +215,11 @@ public class WorldsRebuildTeleOp extends OpMode {
     @Override
     public void start() {
         CommandScheduler.getInstance().reset();
+
         robot.spindexerEncoder.setMode(DcMotorEx.RunMode.STOP_AND_RESET_ENCODER);
         robot.spindexerEncoder.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
-        spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.intakingPositions[0]);
+
+        spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.intakingPositions[1]);
     }
 
 
@@ -203,7 +228,6 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     @Override
     public void loop(){
-        //Calling Functions
         follower.update();
 
         GamepadControlsManaging();
@@ -224,14 +248,19 @@ public class WorldsRebuildTeleOp extends OpMode {
         adjustedDrivingSpeed = Math.max(adjustedDrivingSpeed, rConstants.DriveTrainConstants.minimumDriveTrainSpeed);
 
 
-        double y = gamepad1.left_stick_y * adjustedDrivingSpeed;
-        double x = -gamepad1.left_stick_x * adjustedDrivingSpeed;
-        double rx = gamepad1.right_stick_x * adjustedDrivingSpeed * -1;
+        double y = -gamepad1.left_stick_y * adjustedDrivingSpeed;
+        double x = gamepad1.left_stick_x * adjustedDrivingSpeed;
+        double rx = gamepad1.right_stick_x * adjustedDrivingSpeed;
 
 
-        double headingOffset = rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE ? rConstants.AllianceHeadingOffsets.blueAllianceHeadingOffset : rConstants.AllianceHeadingOffsets.redAllianceHeadingOffset;
-        double rotatedX = x * Math.cos(-getHeading() + headingOffset) - y * Math.sin(-getHeading() + headingOffset);
-        double rotatedY = x * Math.sin(-getHeading() + headingOffset) + y * Math.cos(-getHeading() + headingOffset);
+        double heading = getHeading();
+        double headingOffset = rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE
+                ? rConstants.AllianceHeadingOffsets.blueAllianceHeadingOffset
+                : rConstants.AllianceHeadingOffsets.redAllianceHeadingOffset;
+
+        double rotationAngle = -heading + headingOffset;
+        double rotatedX = x * Math.cos(rotationAngle) - y * Math.sin(rotationAngle);
+        double rotatedY = x * Math.sin(rotationAngle) + y * Math.cos(rotationAngle);
 
 
 
@@ -241,11 +270,13 @@ public class WorldsRebuildTeleOp extends OpMode {
 
         if(Math.abs(rConstants.GamePadControls.gamepad1EX.getRightX()) > 0.05) {
             headingCorrectionEnabled = false;
-            targetHeading = getHeading();
-        } else { headingCorrectionEnabled = true; }
+            targetHeading = heading;
+        } else {
+            headingCorrectionEnabled = true;
+        }
 
-        if(headingCorrectionEnabled) {
-            double headingError = targetHeading - getHeading();
+        if(headingCorrectionEnabled && rConstants.DriveTrainConstants.headingKp > 0) {
+            double headingError = targetHeading - heading;
             while(headingError > Math.PI) headingError -= 2 * Math.PI;
             while(headingError < -Math.PI) headingError += 2 * Math.PI;
 
@@ -256,12 +287,10 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
 
-
-
-        double frontLeftMotorPower = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y + x + rx) : (rotatedY + rotatedX + rx);
-        double backLeftMotorPower = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y - x + rx) : (rotatedY - rotatedX + rx);
+        double frontLeftMotorPower  = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y + x + rx) : (rotatedY + rotatedX + rx);
+        double backLeftMotorPower   = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y - x + rx) : (rotatedY - rotatedX + rx);
         double frontRightMotorPower = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y - x - rx) : (rotatedY - rotatedX - rx);
-        double backRightMotorPower = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y + x - rx) : (rotatedY + rotatedX - rx);
+        double backRightMotorPower  = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y + x - rx) : (rotatedY + rotatedX - rx);
 
 
         double maxPower = Math.max(
@@ -271,10 +300,10 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
         if(maxPower > rConstants.DriveTrainConstants.maximumDriveTrainSpeed){
-            frontLeftMotorPower /= maxPower;
-            backLeftMotorPower /= maxPower;
+            frontLeftMotorPower  /= maxPower;
+            backLeftMotorPower   /= maxPower;
             frontRightMotorPower /= maxPower;
-            backRightMotorPower /= maxPower;
+            backRightMotorPower  /= maxPower;
         }
 
 
@@ -361,6 +390,7 @@ public class WorldsRebuildTeleOp extends OpMode {
         reverseIntakeButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.reverseIntake);
         shootArtefactsButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.shootArtefacts);
         indexSpindexerButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.indexSpindexer);
+        selectAllianceButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.selectAlliance);
     }
 
 
@@ -369,15 +399,18 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     private void BackgroundOperations(){
         intakeSubsystem.periodic();
+
         shooterSubsystem.periodic();
         turretSubsystem.periodic();
         spindexerSubsystem.periodic();
 
+
         shooterSubsystem.setTargetVelocity(dynamicTargetFlyWheelVelocity);
         shooterSubsystem.setHoodPosition(dynamicTargetHoodPosition);
+        turretSubsystem.setTurretAngle(0);
+
 
         SpindexerManaging();
-
         robot.pinpointDriver.update();
         CommandScheduler.getInstance().run();
     }
@@ -386,15 +419,32 @@ public class WorldsRebuildTeleOp extends OpMode {
                 || intakeSubsystem.getState() != IntakeSubsystem.IntakeState.Intaking
                 || !spindexerSubsystem.spindexerPositionReached()) return;
 
-        spindexerSensorsSubsystem.readSensors();
+        double leftDistance = robot.leftDistanceSensor.getDistance(DistanceUnit.CM);
+        double rightDistance = robot.rightDistanceSensor.getDistance(DistanceUnit.CM);
 
-        int currentFrontSlot = spindexerSensorsSubsystem.getCurrentFrontSlot();
-        if(spindexerSensorsSubsystem.isSlotOccupied(currentFrontSlot)){
-            int nextSlot = (currentFrontSlot + 1) % 3;
+        boolean ballPresent = leftDistance <= rConstants.SensorConstants.distanceSensorOccupiedThreshold
+                || rightDistance <= rConstants.SensorConstants.distanceSensorOccupiedThreshold;
+
+        if(ballPresent){
+            currentSpindexerIndex = (currentSpindexerIndex + 1) % rConstants.SpindexerConstants.intakingPositions.length;
             spindexerSubsystem.setSpindexerPosition(
-                    rConstants.SpindexerConstants.intakingPositions[nextSlot]
+                    rConstants.SpindexerConstants.intakingPositions[currentSpindexerIndex]
             );
         }
+    }
+
+
+
+
+
+    private double calculateTurretAngle() {
+        Pose goalPose = getActiveGoalPose();
+        return Math.toDegrees(Math.atan2(goalPose.getY() - getYPose(), goalPose.getX() - getXPose()) - getHeading());
+    }
+    private Pose getActiveGoalPose() {
+        return rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE
+                ? rConstants.FieldConstants.blueGoalPose
+                : rConstants.FieldConstants.redGoalPose;
     }
 
 
@@ -414,23 +464,22 @@ public class WorldsRebuildTeleOp extends OpMode {
     }
     private void InitializeCalibrationPoints() {
         calibrationPoints.clear();
-        calibrationPoints.add(new CalibrationPoints(170.0,  1510,  0));
-        calibrationPoints.add(new CalibrationPoints(150.0,  1450.0,  0));
-        calibrationPoints.add(new CalibrationPoints(105.0,  1315,  0));
-        calibrationPoints.add(new CalibrationPoints(85.0,  1300.0,  0));
-        calibrationPoints.add(new CalibrationPoints(65.0,  1200.0,  0));
-        calibrationPoints.add(new CalibrationPoints(55.0,  1100.0,  0));
+        calibrationPoints.add(new CalibrationPoints(30.0,  1150,  0));
+        calibrationPoints.add(new CalibrationPoints(50.0,  1175,  0));
+        calibrationPoints.add(new CalibrationPoints(65.0,  1255,  0));
+        calibrationPoints.add(new CalibrationPoints(85.0,  1300,  0));
+        calibrationPoints.add(new CalibrationPoints(110.0,  1450,  0));
+        calibrationPoints.add(new CalibrationPoints(125.0,  1540,  0));
         calibrationPoints.sort(Comparator.comparingDouble(a -> a.distanceToGoal));
     }
     private void CalculateShooterParameters() {
         double distance = getDistanceToGoal();
 
-        // --- Velocity compensation for shooting on the move ---
-        double velX = robot.pinpointDriver.getVelX(DistanceUnit.INCH);
-        double velY = robot.pinpointDriver.getVelY(DistanceUnit.INCH);
+        double velX = follower.getVelocity().getYComponent();
+        double velY = follower.getVelocity().getXComponent();
 
-        double dx = getGoalX() - getYPose();
-        double dy = getGoalY() - getXPose();
+        double dx = getGoalX() - getXPose();
+        double dy = getGoalY() - getYPose();
 
         double ux = dx / distance;
         double uy = dy / distance;
@@ -444,7 +493,6 @@ public class WorldsRebuildTeleOp extends OpMode {
         double compensatedDistance = distance - (approachVelocity * flightTime);
         compensatedDistance = Math.max(0, compensatedDistance);
 
-        // --- Calibration point interpolation ---
         if (calibrationPoints.isEmpty()) {
             dynamicTargetFlyWheelVelocity = 0.0;
             dynamicTargetHoodPosition     = 0.0;
@@ -490,11 +538,9 @@ public class WorldsRebuildTeleOp extends OpMode {
     private void TelemetryUpdating(){
         telemetry.addData("Selected Drive Mode: ", rConstants.Enums.selectedDriveMode);
 
-        telemetry.addData("X Pose: ",  "%.1f" , follower.getPose().getX());
-        telemetry.addData("Y Pose: ",  "%.1f" , follower.getPose().getY());
-        telemetry.addData("Distance To Goal: ", getDistanceToGoal());
-        telemetry.addData("X Velocity: ", "%.2f" , getXVelocity());
-        telemetry.addData("Y Velocity: ", "%.2f" , getYVelocity());
+        telemetry.addData("X Pose: ",  "%.1f" , getXPose());
+        telemetry.addData("Y Pose: ",  "%.1f" , getYPose());
+        telemetry.addData("Distance To Goal: ", "%.1f", getDistanceToGoal());
         telemetry.addData("Current Heading: ", "%.1f" , Math.toDegrees(getHeading()));
 
         telemetry.addData("Intake State: ", intakeSubsystem.getState());
@@ -532,38 +578,31 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
     //Helpers
-    private double getHeading() { return robot.pinpointDriver.getHeading(AngleUnit.RADIANS); }
-    private double getXPose() { return follower.getPose().getY(); }
-    private double getYPose() { return follower.getPose().getX(); }
-    private double getXVelocity() { return robot.pinpointDriver.getVelY(); }
-    private double getYVelocity() { return robot.pinpointDriver.getVelX(); }
+    private double getHeading() { return follower.getPose().getHeading(); }
+    private double getXPose() { return follower.getPose().getX(); }
+    private double getYPose() { return follower.getPose().getY(); }
 
-    private double getDistanceToGoal(){
-        double goalX, goalY;
 
-        if (rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE) {
-            goalX = rConstants.FieldConstants.blueGoalXPosition;
-            goalY = rConstants.FieldConstants.blueGoalYPosition;
-        } else {
-            goalX = rConstants.FieldConstants.redGoalXPosition;
-            goalY = rConstants.FieldConstants.redGoalYPosition;
-        }
 
-        double dx = goalX - getYPose();
-        double dy = goalY - getXPose();
+
+
+    private double getDistanceToGoal() {
+        double goalX = getGoalX();
+        double goalY = getGoalY();
+
+        double dx = goalX - getXPose();
+        double dy = goalY - getYPose();
+
         return Math.sqrt(dx * dx + dy * dy);
     }
 
 
 
+
     private double getGoalX() {
-        return rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE
-                ? rConstants.FieldConstants.blueGoalXPosition
-                : rConstants.FieldConstants.redGoalXPosition;
+        return getActiveGoalPose().getX();
     }
     private double getGoalY() {
-        return rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE
-                ? rConstants.FieldConstants.blueGoalYPosition
-                : rConstants.FieldConstants.redGoalYPosition;
+        return getActiveGoalPose().getY();
     }
 }

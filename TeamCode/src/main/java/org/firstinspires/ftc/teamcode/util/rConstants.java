@@ -3,27 +3,21 @@ package org.firstinspires.ftc.teamcode.util;
 import com.acmerobotics.dashboard.config.Config;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
+import com.pedropathing.geometry.Pose;
 
 import org.firstinspires.ftc.teamcode.customPathing.Point;
 
 public class rConstants {
     @Config
     public static class FieldConstants{
-        public static double fieldSize = 144.0;
+        public static Pose blueGoalPose = new Pose(0.0, 0.0);
+        public static Pose redGoalPose = new Pose(133.0, 10.0);
 
 
 
 
 
-
-        public static double blueGoalXPosition = 134.0, blueGoalYPosition = 133.0;
-        public static double redGoalXPosition = 132.0, redGoalYPosition = 8.0;
-
-
-
-
-
-        public static double startingXPosition = 72.0, startingYPosition = 72.0;
+        public static Pose startingPose = new Pose(72.0, 72.0);
     }
 
 
@@ -56,8 +50,8 @@ public class rConstants {
 
     @Config
     public static class AllianceHeadingOffsets{
-        public static double blueAllianceHeadingOffset = Math.toRadians(0);
-        public static double redAllianceHeadingOffset = Math.toRadians(90);
+        public static double blueAllianceHeadingOffset = 90;
+        public static double redAllianceHeadingOffset = -45;
     }
 
 
@@ -97,7 +91,7 @@ public class rConstants {
 
 
         public static double driveCubicTerm=0.6, driveLinearTerm=0.5;
-        public static double maximumDriveTrainSpeed=1.0, minimumDriveTrainSpeed=0.35;
+        public static double maximumDriveTrainSpeed=1.0, minimumDriveTrainSpeed=0.525;
     }
 
 
@@ -130,17 +124,17 @@ public class rConstants {
 
     @Config
     public static class AutonomousConstants{
-        public static double translationalKSQ = 0.0;
+        public static double translationalKSQ = 100.0;
         public static double translationalKD = 0.0;
 
-        public static double headingKSQ = 0.0;
+        public static double headingKSQ = 100.0;
         public static double headingKd = 0.0;
 
 
 
 
-        public static double radiusTolerance = 0.0;
-        public static double headingTolerance = 0.0; // Degrees
+        public static double radiusTolerance = 15.0;
+        public static double headingTolerance = 5.0; // Degrees
 
 
 
@@ -168,7 +162,7 @@ public class rConstants {
         public static double disabledSpeed = 0.0;
         public static double intakingSpeed = 1.0;
         public static double reversingSpeed = -1.0;
-        public static double idlingSpeed = 0.4;
+        public static double idlingSpeed = 0.9;
 
 
 
@@ -193,21 +187,21 @@ public class rConstants {
 
 
 
-        public static double[] intakingPositions = {0.075, 0.3, 0.53};
-        public static double[] shootingPositions = {0.18, 0.41, 0.65};
-        public static double[] encoderShootingPositions = {1360, 4100, 6900};
+        public static double[] intakingPositions = {0.165, 0.385, 0.622};
+        public static double[] shootingPositions = {0.275, 0.5, 0.73};
+        public static double[] encoderShootingPositions = {1320, 4000, 6775};
 
 
 
 
-        public static double spindexerVelocityCheckDelay = 50;
+        public static double spindexerVelocityCheckDelay = 10;
         public static double minimumPeakVelocity = 1000;
-        public static double decelerationTriggerRatio = 0.1;
+        public static double decelerationTriggerRatio = 0.5;
 
 
 
 
-        public static double positionalTolerance = 2000;
+        public static double positionalTolerance = 1900;
     }
 
 
@@ -274,15 +268,15 @@ public class rConstants {
 
 
 
-        public static double turretKp=0.004, turretKd=0.325;
-        public static double maxTurretPower=0.9;
+        public static double turretKp=0.0045, turretKd=0.325;
+        public static double maxTurretPower=0.75;
 
 
 
 
 
         public static double turretMaxLeftAngle = 125, turretMaxRightAngle = -125;
-        public static double turretOffset = 5;
+        public static double turretOffset = 0;
     }
 
 
@@ -299,14 +293,14 @@ public class rConstants {
 
 
 
-        public static double homePosition = 0.44;
-        public static double transferPosition = 0.3;
+        public static double homePosition = 0.4;
+        public static double transferPosition = 0.51;
 
 
 
 
-        public static long servoRiseTime = 110;
-        public static long servoHomingTime = 75;
+        public static long servoRiseTime = 90;
+        public static long servoHomingTime = 100;
     }
 
 
@@ -333,6 +327,7 @@ public class rConstants {
         // Autonomous Constructing Controls
         public static GamepadKeys.Button selectBlueAlliance = GamepadKeys.Button.X;
         public static GamepadKeys.Button selectRedAlliance = GamepadKeys.Button.B;
+        public static GamepadKeys.Button selectAlliance = GamepadKeys.Button.A;
 
 
         public static GamepadKeys.Button selectCloseZoneStartingPosition = GamepadKeys.Button.DPAD_DOWN;
@@ -380,34 +375,35 @@ public class rConstants {
     public static class AutonomousPositionConstants {
 
         // ── Blue Alliance Positions ──
-        public static Point scoreCloseZoneBlueSide = new Point(0, 0, 0);
-        public static Point scoreFarZoneBlueSide   = new Point(0, 0, 0);
+        public static Point blueCloseZoneStartingPosition = new Point(131.0, 109.0, 0.0);
+        public static Point scoreCloseZoneBlueSide = new Point(79.0, 82.0, 43.0);
+        public static Point scoreFarZoneBlueSide   = new Point(12.0, 82.0, 23.0);
 
         public static Point gateCollectBlueSide = new Point(0, 0, 0);
 
-        public static Point collectThirdSet1BlueSide = new Point(0, 0, 0);
-        public static Point collectThirdSet2BlueSide = new Point(0, 0, 0);
+        public static Point collectThirdSet1BlueSide = new Point(30.0, 83.0, 90.0);
+        public static Point collectThirdSet2BlueSide = new Point(30.0, 114.0, 90.0);
 
-        public static Point collectSecondSet1BlueSide = new Point(0, 0, 0);
-        public static Point collectSecondSet2BlueSide = new Point(0, 0, 0);
+        public static Point collectSecondSet1BlueSide = new Point(53.0, 85.0, 90.0);
+        public static Point collectSecondSet2BlueSide = new Point(53.0, 114.0, 90.0);
 
-        public static Point collectFirstSet1BlueSide = new Point(0, 0, 0);
-        public static Point collectFirstSet2BlueSide = new Point(0, 0, 0);
-
+        public static Point collectFirstSet1BlueSide = new Point(78.0, 85.0, 90.0);
+        public static Point collectFirstSet2BlueSide = new Point(78.0, 113.0, 90.0);
 
         // ── Red Alliance Positions ──
-        public static Point scoreCloseZoneRedSide = new Point(0, 0, 0);
-        public static Point scoreFarZoneRedSide   = new Point(0, 0, 0);
+        public static Point redCloseZoneStartingPosition = new Point(9, 106, -180);
+        public static Point scoreCloseZoneRedSide = new Point(47.0, 85.0, 135.0);
+        public static Point scoreFarZoneRedSide   = new Point(126.0, 89.0, 161.0);
 
-        public static Point gateCollectRedSide = new Point(0, 0, 0);
+        public static Point gateCollectRedSide = new Point(73, 129.25,  120.0);
 
-        public static Point collectThirdSet1RedSide = new Point(0, 0, 0);
-        public static Point collectThirdSet2RedSide = new Point(0, 0, 0);
+        public static Point collectThirdSet1RedSide = new Point(44.0, 103.0, 90.0);
+        public static Point collectThirdSet2RedSide = new Point(44.0, 130.0, 90.0);
 
-        public static Point collectSecondSet1RedSide = new Point(0, 0, 0);
-        public static Point collectSecondSet2RedSide = new Point(0, 0, 0);
+        public static Point collectSecondSet1RedSide = new Point(69.15, 100.0, 90.0);
+        public static Point collectSecondSet2RedSide = new Point(69.15, 135.0, 90.0);
 
-        public static Point collectFirstSet1RedSide = new Point(0, 0, 0);
-        public static Point collectFirstSet2RedSide = new Point(0, 0, 0);
+        public static Point collectFirstSet1RedSide = new Point(92.0, 104.0, 90.0);
+        public static Point collectFirstSet2RedSide = new Point(92.0, 135.0, 90.0);
     }
 }

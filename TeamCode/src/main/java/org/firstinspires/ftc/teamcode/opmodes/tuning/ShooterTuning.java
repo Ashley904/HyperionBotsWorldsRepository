@@ -3,12 +3,15 @@ package org.firstinspires.ftc.teamcode.opmodes.tuning;
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
+import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.Pose; // FIX: Imported for active goal tracking
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.subsystems.ShooterSubsystem;
 import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
 import org.firstinspires.ftc.teamcode.util.rConstants;
@@ -19,6 +22,7 @@ public class ShooterTuning extends OpMode {
     FtcDashboard ftcDashboard;
     ShooterSubsystem shooterSubsystem;
     RobotHardwareMap robot;
+    Follower follower;
 
 
 
@@ -33,7 +37,8 @@ public class ShooterTuning extends OpMode {
     public void init(){
         ftcDashboard = FtcDashboard.getInstance();
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
-
+        follower = Constants.createFollower(hardwareMap);
+        follower.setStartingPose(rConstants.FieldConstants.startingPose);
 
 
 
@@ -41,8 +46,6 @@ public class ShooterTuning extends OpMode {
 
         robot = new RobotHardwareMap();
         robot.init(hardwareMap);
-        robot.pinpointDriver.recalibrateIMU();
-        robot.pinpointDriver.setPosition(new Pose2D(DistanceUnit.INCH, 0, 0, AngleUnit.DEGREES, 0));
 
 
 
@@ -61,7 +64,7 @@ public class ShooterTuning extends OpMode {
 
     @Override
     public void loop(){
-        robot.pinpointDriver.update();
+        follower.update();
 
         shooterSubsystem.setTargetVelocity(targetFlyWheelVelocity);
         shooterSubsystem.setHoodPosition(targetHoodPosition);
@@ -72,20 +75,52 @@ public class ShooterTuning extends OpMode {
 
 
 
-        double fieldX = 72.0 + robot.pinpointDriver.getPosY(DistanceUnit.INCH);
-        double fieldY = 72.0 + robot.pinpointDriver.getPosX(DistanceUnit.INCH);
-
-        double dx = rConstants.FieldConstants.blueGoalXPosition - fieldX;
-        double dy = rConstants.FieldConstants.blueGoalYPosition - fieldY;
-        double distanceToGoal = Math.sqrt(dx * dx + dy * dy);
-
-
-
-
-
-
-        telemetry.addData("Distance To Blue Goal: ", "%.1f", distanceToGoal);
+        telemetry.addData("Selected Alliance: ", rConstants.Enums.selectedAlliance);
+        telemetry.addData("Distance To Goal: ", "%.1f", getDistanceToGoal()); // FIX: Label updated
         telemetry.addData("Current FlyWheel Velocity: ", "%.0f", shooterSubsystem.getCurrentFlyWheelVelocity());
         telemetry.update();
+    }
+
+
+
+
+
+
+    private Pose getActiveGoalPose() {
+        return rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE
+                ? rConstants.FieldConstants.blueGoalPose
+                : rConstants.FieldConstants.redGoalPose;
+    }
+
+
+
+
+
+
+    private double getXPose() { return follower.getPose().getX(); }
+    private double getYPose() { return follower.getPose().getY(); }
+
+
+
+
+
+    private double getDistanceToGoal() {
+        double goalX = getGoalX();
+        double goalY = getGoalY();
+
+        double dx = goalX - getXPose();
+        double dy = goalY - getYPose();
+
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+
+
+
+    private double getGoalX() {
+        return getActiveGoalPose().getX();
+    }
+    private double getGoalY() {
+        return getActiveGoalPose().getY();
     }
 }

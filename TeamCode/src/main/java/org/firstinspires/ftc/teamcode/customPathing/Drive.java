@@ -52,31 +52,39 @@ public class Drive {
 
 
     public void driveToTargetPoint(double currentRobotHeading, double currentRobotXPosition, double currentRobotYPosition){
-        // Error Calculations
-        headingErrorInRadians = AngleUnit.normalizeRadians(Math.toRadians(targetPoint.getHeading()) - Math.toRadians(currentRobotHeading));
-        errorVector = new Vector2d(targetPoint.getX() - currentRobotXPosition, targetPoint.getY() - currentRobotYPosition);
 
-        errorVector = errorVector.rotateBy(-currentRobotHeading);
+        // Error Calculations
+        double currentHeadingRad = Math.toRadians(currentRobotHeading);
+
+        headingErrorInRadians = AngleUnit.normalizeRadians(
+                Math.toRadians(targetPoint.getHeading()) - currentHeadingRad
+        );
+
+        errorVector = new Vector2d(
+                targetPoint.getX() - currentRobotXPosition,
+                targetPoint.getY() - currentRobotYPosition
+        );
+
+        errorVector = errorVector.rotateBy(Math.toRadians(-currentRobotHeading));
 
         // Calculating Powers
         turn = -headingSQUIDController.calculate(
                 headingErrorInRadians,
                 rConstants.AutonomousConstants.headingKSQ,
-                rConstants.AutonomousConstants.headingKd);
+                rConstants.AutonomousConstants.headingKd
+        );
 
         drive = driveSQUIDController.calculate(
                 errorVector.getX(),
                 rConstants.AutonomousConstants.translationalKSQ,
-                rConstants.AutonomousConstants.translationalKD);
+                rConstants.AutonomousConstants.translationalKD
+        );
 
-        strafe = -strafeSQUIDController.calculate(
+        strafe = strafeSQUIDController.calculate(
                 errorVector.getY(),
                 rConstants.AutonomousConstants.translationalKSQ,
-                rConstants.AutonomousConstants.translationalKD);
-
-
-
-
+                rConstants.AutonomousConstants.translationalKD
+        );
 
         setDriveTrainMotorPowers(drive, strafe, turn);
     }
@@ -110,10 +118,10 @@ public class Drive {
 
 
     private void setDriveTrainMotorPowers(double drive, double strafe, double turn){
-        double frontLeftMotorPower = drive + strafe + turn;
-        double backLeftMotorPower = drive - strafe - turn;
-        double frontRightMotorPower = drive - strafe + turn;
-        double backRightMotorPower = drive + strafe - turn;
+        double frontLeftMotorPower  = drive + strafe - turn;
+        double backLeftMotorPower   = drive - strafe - turn;
+        double frontRightMotorPower = drive - strafe - turn;
+        double backRightMotorPower  = drive + strafe - turn;
 
         double maxPower = Math.max(Math.abs(frontLeftMotorPower), Math.max(Math.abs(frontRightMotorPower),
                 Math.max(Math.abs(backLeftMotorPower), Math.abs(backRightMotorPower))));

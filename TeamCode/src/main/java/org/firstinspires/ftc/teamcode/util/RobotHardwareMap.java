@@ -155,10 +155,10 @@ public class RobotHardwareMap {
 
     private void initializeTransfer(HardwareMap hardwareMap){
         leftTransferServo = hardwareMap.get(Servo.class, rConstants.TransferConstants.leftTransferServoName);
-        leftTransferServo.setDirection(Servo.Direction.REVERSE);
+        leftTransferServo.setDirection(Servo.Direction.FORWARD);
 
         rightTransferServo = hardwareMap.get(Servo.class, rConstants.TransferConstants.rightTransferServoName);
-        rightTransferServo.setDirection(Servo.Direction.FORWARD);
+        rightTransferServo.setDirection(Servo.Direction.REVERSE);
     }
 
 

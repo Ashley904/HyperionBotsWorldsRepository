@@ -32,7 +32,6 @@ public class TurretSubsystem extends SubsystemBase {
         double targetTicks = targetTurretAngle * ticksPerDegree;
 
         double error = targetTicks - currentTicks;
-
         double output = pdController.calculate(0, error, -rConstants.TurretConstants.maxTurretPower, rConstants.TurretConstants.maxTurretPower);
 
         robot.turretMotor.setPower(output);
