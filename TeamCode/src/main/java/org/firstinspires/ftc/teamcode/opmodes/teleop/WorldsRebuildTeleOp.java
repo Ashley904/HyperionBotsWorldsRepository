@@ -1,7 +1,5 @@
 package org.firstinspires.ftc.teamcode.opmodes.teleop;
 
-import android.telephony.emergency.EmergencyNumber;
-
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
@@ -101,8 +99,6 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
     int currentSpindexerIndex = 0;
-    double turretAngle = 0.0;
-    double offset = 0.0;
 
 
 
@@ -135,7 +131,7 @@ public class WorldsRebuildTeleOp extends OpMode {
 
         // Enabling Bulk Reading
         for (LynxModule hub : hardwareMap.getAll(LynxModule.class)) {
-            hub.setBulkCachingMode(LynxModule.BulkCachingMode.MANUAL);
+            hub.setBulkCachingMode(LynxModule.BulkCachingMode.AUTO);
         }
 
 
@@ -232,17 +228,12 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     @Override
     public void loop(){
-        for (LynxModule hub : hardwareMap.getAll(LynxModule.class)) {
-            hub.clearBulkCache();
-        }
         follower.update();
-        follower.startTeleOpDrive();
 
         GamepadControlsManaging();
         BackgroundOperations();
         RobotDrive();
         CalculateShooterParameters();
-        SpindexerManaging();
 
         if(loopCount++ % 3 == 0) TelemetryUpdating();
     }
@@ -256,34 +247,70 @@ public class WorldsRebuildTeleOp extends OpMode {
         adjustedDrivingSpeed = 1.0 - adjustedDrivingSpeed;
         adjustedDrivingSpeed = Math.max(adjustedDrivingSpeed, rConstants.DriveTrainConstants.minimumDriveTrainSpeed);
 
+
         double y = -gamepad1.left_stick_y * adjustedDrivingSpeed;
-        double x = -gamepad1.left_stick_x * adjustedDrivingSpeed;
-        double rx = -gamepad1.right_stick_x * adjustedDrivingSpeed;
+        double x = gamepad1.left_stick_x * adjustedDrivingSpeed;
+        double rx = gamepad1.right_stick_x * adjustedDrivingSpeed;
 
-        if(rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric){
-            follower.setTeleOpDrive(
-                    y,
-                    x,
-                    rx,
-                    true
-            );
-        }else if (rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.FieldCentric){
-            if(rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE) offset = rConstants.AllianceHeadingOffsets.blueAllianceHeadingOffset;
-            else if(rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.RED) offset = rConstants.AllianceHeadingOffsets.redAllianceHeadingOffset;
 
-            double cos = Math.cos(offset);
-            double sin = Math.sin(offset);
+        double heading = getHeading();
+        double headingOffset = rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE
+                ? rConstants.AllianceHeadingOffsets.blueAllianceHeadingOffset
+                : rConstants.AllianceHeadingOffsets.redAllianceHeadingOffset;
 
-            double rotatedX = x * cos - y * sin;
-            double rotatedY = x * sin + y * cos;
+        double rotationAngle = -heading + headingOffset;
+        double rotatedX = x * Math.cos(rotationAngle) - y * Math.sin(rotationAngle);
+        double rotatedY = x * Math.sin(rotationAngle) + y * Math.cos(rotationAngle);
 
-            follower.setTeleOpDrive(
-                    rotatedY,
-                    rotatedX,
-                    rx,
-                    false
-            );
+
+
+
+        //----------Heading Correction----------//
+        headingPDController.setGains(rConstants.DriveTrainConstants.headingKp, rConstants.DriveTrainConstants.headingKd);
+
+        if(Math.abs(rConstants.GamePadControls.gamepad1EX.getRightX()) > 0.05) {
+            headingCorrectionEnabled = false;
+            targetHeading = heading;
+        } else {
+            headingCorrectionEnabled = true;
         }
+
+        if(headingCorrectionEnabled && rConstants.DriveTrainConstants.headingKp > 0) {
+            double headingError = targetHeading - heading;
+            while(headingError > Math.PI) headingError -= 2 * Math.PI;
+            while(headingError < -Math.PI) headingError += 2 * Math.PI;
+
+            rx = headingPDController.calculate(0, headingError, -0.75, 0.75);
+        }
+        //----------end-----------//
+
+
+
+
+        double frontLeftMotorPower  = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y + x + rx) : (rotatedY + rotatedX + rx);
+        double backLeftMotorPower   = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y - x + rx) : (rotatedY - rotatedX + rx);
+        double frontRightMotorPower = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y - x - rx) : (rotatedY - rotatedX - rx);
+        double backRightMotorPower  = rConstants.Enums.selectedDriveMode == rConstants.Enums.DriveMode.RobotCentric ? (y + x - rx) : (rotatedY + rotatedX - rx);
+
+
+        double maxPower = Math.max(
+                Math.max(Math.abs(frontLeftMotorPower), Math.abs(backLeftMotorPower)),
+                Math.max(Math.abs(frontRightMotorPower), Math.abs(backRightMotorPower))
+        );
+
+
+        if(maxPower > rConstants.DriveTrainConstants.maximumDriveTrainSpeed){
+            frontLeftMotorPower  /= maxPower;
+            backLeftMotorPower   /= maxPower;
+            frontRightMotorPower /= maxPower;
+            backRightMotorPower  /= maxPower;
+        }
+
+
+        robot.front_left_motor.setPower(frontLeftMotorPower);
+        robot.back_left_motor.setPower(backLeftMotorPower);
+        robot.front_right_motor.setPower(frontRightMotorPower);
+        robot.back_right_motor.setPower(backRightMotorPower);
     }
 
 
@@ -372,14 +399,18 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     private void BackgroundOperations(){
         intakeSubsystem.periodic();
+
         shooterSubsystem.periodic();
+        turretSubsystem.periodic();
         spindexerSubsystem.periodic();
 
 
-        shooterSubsystem.setTargetVelocity(1240);
-        shooterSubsystem.setHoodPosition(0.54);
+        shooterSubsystem.setTargetVelocity(dynamicTargetFlyWheelVelocity);
+        shooterSubsystem.setHoodPosition(dynamicTargetHoodPosition);
+        turretSubsystem.setTurretAngle(0);
 
 
+        SpindexerManaging();
         robot.pinpointDriver.update();
         CommandScheduler.getInstance().run();
     }
@@ -408,7 +439,7 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     private double calculateTurretAngle() {
         Pose goalPose = getActiveGoalPose();
-        return Math.atan2(goalPose.getY() - getYPose(), goalPose.getX() - getXPose());
+        return Math.toDegrees(Math.atan2(goalPose.getY() - getYPose(), goalPose.getX() - getXPose()) - getHeading());
     }
     private Pose getActiveGoalPose() {
         return rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE
@@ -433,9 +464,12 @@ public class WorldsRebuildTeleOp extends OpMode {
     }
     private void InitializeCalibrationPoints() {
         calibrationPoints.clear();
-        calibrationPoints.add(new CalibrationPoints(87.0,  1200,  0.6));
-        calibrationPoints.add(new CalibrationPoints(57.6,  1000,  0.6));
-        calibrationPoints.add(new CalibrationPoints(93.9,  1240,  0.54));
+        calibrationPoints.add(new CalibrationPoints(36.0,  1110.0,  0.88));
+        calibrationPoints.add(new CalibrationPoints(61.0,  1230.0,  0.88));
+        calibrationPoints.add(new CalibrationPoints(88.0,  1350.0,  0.71));
+        calibrationPoints.add(new CalibrationPoints(132.0,  1670,  0.75));
+        calibrationPoints.add(new CalibrationPoints(150.0,  1750,  0.7));
+        calibrationPoints.sort(Comparator.comparingDouble(a -> a.distanceToGoal));
     }
     private void CalculateShooterParameters() {
         double distance = getDistanceToGoal();
@@ -498,6 +532,8 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
 
+
+
     private void TelemetryUpdating(){
         telemetry.addData("Selected Drive Mode: ", rConstants.Enums.selectedDriveMode);
 
@@ -508,11 +544,23 @@ public class WorldsRebuildTeleOp extends OpMode {
 
         telemetry.addData("Intake State: ", intakeSubsystem.getState());
         telemetry.addData("Intake Velocity: ", "%.0f" , intakeSubsystem.getIntakeVelocity());
+        telemetry.addData("Intake Current Draw: ", "%.1f",  intakeSubsystem.getIntakeCurrentDraw());
 
+        telemetry.addData("Spindexer State: ", spindexerSubsystem.getSpindexerState());
+        telemetry.addData("Spindexer Velocity: ", spindexerSubsystem.getVelocity());
+        telemetry.addData("Spindexer Position: ", spindexerSubsystem.getPosition());
+        telemetry.addData("Spindexer Position Reached?: ", spindexerSubsystem.spindexerPositionReached());
+
+        telemetry.addData("Current FlyWheel State: ", rConstants.Enums.currentShooterState);
         telemetry.addData("Current FlyWheel Velocity: ", "%.0f", shooterSubsystem.getCurrentFlyWheelVelocity());
         telemetry.addData("Target FlyWheel Wheel Velocity: ", "%.0f", dynamicTargetFlyWheelVelocity);
+        telemetry.addData("Target Hood Position: ", "%.0f", dynamicTargetHoodPosition);
 
-        telemetry.addData("Turret Target Angle: ", "%.1f", calculateTurretAngle());
+        telemetry.addData("Turret Target Angle: ", "%.1f", turretSubsystem.getTargetAngle());
+        telemetry.addData("Turret Current Position: ", turretSubsystem.getCurrentTurretPosition());
+
+        telemetry.addData("Loop Time: ", elapsedTime.milliseconds());
+        elapsedTime.reset();
 
         telemetry.update();
     }
@@ -524,7 +572,6 @@ public class WorldsRebuildTeleOp extends OpMode {
     private void RumbleGamePad(int duration){
         gamepad1.rumble(1.0, 1.0, duration);
     }
-
 
 
 
@@ -547,7 +594,6 @@ public class WorldsRebuildTeleOp extends OpMode {
 
         return Math.sqrt(dx * dx + dy * dy);
     }
-
 
 
 

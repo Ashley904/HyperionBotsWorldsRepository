@@ -13,7 +13,7 @@ import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
-import com.pedropathing.paths.Path;
+import com.pedropathing.paths.PathChain;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
@@ -23,6 +23,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.commands.InitializeTransferCMD;
 import org.firstinspires.ftc.teamcode.commands.ShootArtefactsCMD;
 import org.firstinspires.ftc.teamcode.customPathing.Point;
+import org.firstinspires.ftc.teamcode.opmodes.teleop.WorldsRebuildTeleOp;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.subsystems.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.ShooterSubsystem;
@@ -33,6 +34,7 @@ import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
 import org.firstinspires.ftc.teamcode.util.rConstants;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Config
@@ -42,15 +44,11 @@ public class ConfigurableAutonomous extends OpMode {
     private enum Phase { SelectingAlliance, SelectingStartingZone, ConstructingActions, Confirming, Ready }
     private enum ActionType { ShootCloseZone, ShootFarZone, CollectCloseSet, CollectMiddleSet, CollectFarSet, GateCollect }
 
-
-
+    public static double collectSlowSpeed = 0.6;
 
 
     private RobotHardwareMap robot;
     private Follower follower;
-
-
-
 
 
     private IntakeSubsystem intakeSubsystem;
@@ -60,16 +58,10 @@ public class ConfigurableAutonomous extends OpMode {
     private SpindexerSensorsSubsystem spindexerSensorsSubsystem;
 
 
-
-
-
     private Phase currentPhase = Phase.SelectingAlliance;
     private boolean isCloseZone = true;
     private List<ActionType> actionQueue = new ArrayList<>();
     private Pose trackingPose;
-
-
-
 
 
     private ButtonReader selectBlueAllianceButtonReader, selectRedAllianceButtonReader;
@@ -80,14 +72,11 @@ public class ConfigurableAutonomous extends OpMode {
     private ButtonReader undoButtonReader, confirmButtonReader;
 
 
-
-
-
     int currentSpindexerIndex = 0;
 
 
-
-
+    private static final List<CalibrationPoints> calibrationPoints = new ArrayList<>();
+    double dynamicTargetFlyWheelVelocity = 0.0, dynamicTargetHoodPosition = 0.0;
 
 
     // ═══════════════════════════════════════════
@@ -113,18 +102,17 @@ public class ConfigurableAutonomous extends OpMode {
 
         @Override
         public void initialize() {
-            Path path = new Path(new BezierLine(fromPose, toPose));
-            path.setLinearHeadingInterpolation(fromPose.getHeading(), toPose.getHeading());
-            follower.followPath(path);
+            PathChain pathChain = follower.pathBuilder()
+                    .addPath(new BezierLine(fromPose, toPose))
+                    .setLinearHeadingInterpolation(fromPose.getHeading(), toPose.getHeading())
+                    .build();
+            follower.followPath(pathChain, maxSpeed, false);
         }
 
         @Override public void execute() {}
         @Override public boolean isFinished() { return !follower.isBusy(); }
         @Override public void end(boolean interrupted) {}
     }
-
-
-
 
 
     // ═══════════════════════════════════════════
@@ -154,13 +142,11 @@ public class ConfigurableAutonomous extends OpMode {
         CommandScheduler.getInstance().reset();
         CommandScheduler.getInstance().schedule(new InitializeTransferCMD(robot));
         InitializeButtonReaders();
+        InitializeCalibrationPoints();
 
         telemetry.addData("Status", "Initialization Complete...");
         telemetry.update();
     }
-
-
-
 
 
     @Override
@@ -184,9 +170,6 @@ public class ConfigurableAutonomous extends OpMode {
 
         DisplayStatus();
     }
-
-
-
 
 
     @Override
@@ -215,9 +198,6 @@ public class ConfigurableAutonomous extends OpMode {
     }
 
 
-
-
-
     @Override
     public void loop() {
         follower.update();
@@ -227,16 +207,22 @@ public class ConfigurableAutonomous extends OpMode {
         turretSubsystem.periodic();
         spindexerSubsystem.periodic();
 
-        shooterSubsystem.setTargetVelocity(1200);
+        // Calculate shooter parameters dynamically based on distance to goal
+        CalculateShooterParameters();
+
+        shooterSubsystem.setTargetVelocity(dynamicTargetFlyWheelVelocity);
+        shooterSubsystem.setHoodPosition(dynamicTargetHoodPosition);
+        turretSubsystem.setTurretAngle(0);
 
         // Auto-indexing runs every loop while intake is on
         SpindexerManaging();
-
         CommandScheduler.getInstance().run();
 
         telemetry.addData("X", "%.1f", follower.getPose().getX());
         telemetry.addData("Y", "%.1f", follower.getPose().getY());
         telemetry.addData("Heading", "%.1f", Math.toDegrees(follower.getPose().getHeading()));
+        telemetry.addData("Distance To Goal", "%.1f", getDistanceToGoal());
+        telemetry.addData("Target Velocity", "%.0f", dynamicTargetFlyWheelVelocity);
         telemetry.addData("Busy", follower.isBusy());
         telemetry.addData("Intake State", intakeSubsystem.getState());
         telemetry.addData("Spindexer State", spindexerSubsystem.getSpindexerState());
@@ -244,24 +230,16 @@ public class ConfigurableAutonomous extends OpMode {
     }
 
 
-
-
-
     @Override
     public void stop() {
-        rConstants.FieldConstants.startingPose = new Pose(follower.getPose().getX(), follower.getPose().getY());
+        rConstants.FieldConstants.startingPose = new Pose(
+                follower.getPose().getX(),
+                follower.getPose().getY(),
+                follower.getPose().getHeading()
+        );
         CommandScheduler.getInstance().reset();
     }
 
-
-
-
-
-    // ═══════════════════════════════════════════
-    //  SPINDEXER AUTO-INDEXING
-    //  Runs every loop — when intake is on and a ball is detected
-    //  in the front slot, rotates the spindexer to the next empty slot
-    // ═══════════════════════════════════════════
 
     private void SpindexerManaging(){
         if(spindexerSubsystem.getSpindexerState() == SpindexerSubsystem.SpindexerState.Shooting
@@ -281,9 +259,6 @@ public class ConfigurableAutonomous extends OpMode {
             );
         }
     }
-
-
-
 
 
     // ═══════════════════════════════════════════
@@ -315,9 +290,6 @@ public class ConfigurableAutonomous extends OpMode {
         collectFarSetButtonReader.readValue();       gateCollectButtonReader.readValue();
         undoButtonReader.readValue();                confirmButtonReader.readValue();
     }
-
-
-
 
 
     // ═══════════════════════════════════════════
@@ -360,9 +332,6 @@ public class ConfigurableAutonomous extends OpMode {
     }
 
 
-
-
-
     // ═══════════════════════════════════════════
     //  BUILD COMMAND SEQUENCE
     // ═══════════════════════════════════════════
@@ -403,7 +372,7 @@ public class ConfigurableAutonomous extends OpMode {
                             : rConstants.AutonomousPositionConstants.gateCollectRedSide);
                     commands.add(new FollowPathCommand(trackingPose, target));
                     commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking)));
-                    commands.add(new WaitCommand(1500));
+                    commands.add(new WaitCommand(1300));
                     commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled)));
                     trackingPose = target;
                     break;
@@ -418,7 +387,7 @@ public class ConfigurableAutonomous extends OpMode {
                             : rConstants.AutonomousPositionConstants.collectThirdSet2RedSide);
                     commands.add(new FollowPathCommand(trackingPose, pose1));
                     commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking)));
-                    commands.add(new FollowPathCommand(pose1, pose2, 1.0));
+                    commands.add(new FollowPathCommand(pose1, pose2, collectSlowSpeed));
                     commands.add(new WaitCommand(1000));
                     commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled)));
                     trackingPose = pose2;
@@ -434,7 +403,7 @@ public class ConfigurableAutonomous extends OpMode {
                             : rConstants.AutonomousPositionConstants.collectSecondSet2RedSide);
                     commands.add(new FollowPathCommand(trackingPose, pose1));
                     commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking)));
-                    commands.add(new FollowPathCommand(pose1, pose2, 1.0));
+                    commands.add(new FollowPathCommand(pose1, pose2, collectSlowSpeed));
                     commands.add(new WaitCommand(1000));
                     commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled)));
                     trackingPose = pose2;
@@ -450,7 +419,7 @@ public class ConfigurableAutonomous extends OpMode {
                             : rConstants.AutonomousPositionConstants.collectFirstSet2RedSide);
                     commands.add(new FollowPathCommand(trackingPose, pose1));
                     commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking)));
-                    commands.add(new FollowPathCommand(pose1, pose2, 1.0));
+                    commands.add(new FollowPathCommand(pose1, pose2, collectSlowSpeed));
                     commands.add(new WaitCommand(1000));
                     commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled)));
                     trackingPose = pose2;
@@ -463,19 +432,116 @@ public class ConfigurableAutonomous extends OpMode {
     }
 
 
+    // ═══════════════════════════════════════════
+    //  SHOOTER CALIBRATION
+    // ═══════════════════════════════════════════
 
+    private static class CalibrationPoints {
+        public double distanceToGoal;
+        public double flyWheelVelocity;
+        public double hoodPosition;
+
+        public CalibrationPoints(double distanceToGoal, double flyWheelVelocity, double hoodPosition) {
+            this.distanceToGoal   = distanceToGoal;
+            this.flyWheelVelocity = flyWheelVelocity;
+            this.hoodPosition     = hoodPosition;
+        }
+    }
+
+    private void InitializeCalibrationPoints() {
+        calibrationPoints.clear();
+        calibrationPoints.add(new CalibrationPoints(36.0,  1110.0,  0.88));
+        calibrationPoints.add(new CalibrationPoints(61.0,  1230.0,  0.88));
+        calibrationPoints.add(new CalibrationPoints(88.0,  1350.0,  0.71));
+        calibrationPoints.add(new CalibrationPoints(132.0,  1670,  0.75));
+        calibrationPoints.add(new CalibrationPoints(150.0,  1750,  0.7));
+        calibrationPoints.sort(Comparator.comparingDouble(a -> a.distanceToGoal));
+    }
+
+    private void CalculateShooterParameters() {
+        double distance = getDistanceToGoal();
+
+        double velX = follower.getVelocity().getYComponent();
+        double velY = follower.getVelocity().getXComponent();
+
+        double dx = getGoalX() - getXPose();
+        double dy = getGoalY() - getYPose();
+
+        double ux = distance == 0 ? 0 : dx / distance;
+        double uy = distance == 0 ? 0 : dy / distance;
+
+        double approachVelocity = velX * ux + velY * uy;
+        double flightTime = 0;
+        if (dynamicTargetFlyWheelVelocity > 0) {
+            flightTime = distance / (dynamicTargetFlyWheelVelocity * rConstants.ShooterConstants.flywheelToBallSpeedRatio);
+        }
+
+        double compensatedDistance = distance - (approachVelocity * flightTime);
+        compensatedDistance = Math.max(0, compensatedDistance);
+
+        if (calibrationPoints.isEmpty()) {
+            dynamicTargetFlyWheelVelocity = 0.0;
+            dynamicTargetHoodPosition     = 0.0;
+            return;
+        }
+
+        if (compensatedDistance <= calibrationPoints.get(0).distanceToGoal) {
+            dynamicTargetFlyWheelVelocity = calibrationPoints.get(0).flyWheelVelocity;
+            dynamicTargetHoodPosition     = calibrationPoints.get(0).hoodPosition;
+            return;
+        }
+
+        if (compensatedDistance >= calibrationPoints.get(calibrationPoints.size() - 1).distanceToGoal) {
+            CalibrationPoints last = calibrationPoints.get(calibrationPoints.size() - 1);
+            dynamicTargetFlyWheelVelocity = last.flyWheelVelocity;
+            dynamicTargetHoodPosition     = last.hoodPosition;
+            return;
+        }
+
+        for (int i = 0; i < calibrationPoints.size() - 1; i++) {
+            CalibrationPoints p1 = calibrationPoints.get(i);
+            CalibrationPoints p2 = calibrationPoints.get(i + 1);
+
+            if (compensatedDistance >= p1.distanceToGoal && compensatedDistance <= p2.distanceToGoal) {
+                double t = (compensatedDistance - p1.distanceToGoal) / (p2.distanceToGoal - p1.distanceToGoal);
+
+                dynamicTargetFlyWheelVelocity = p1.flyWheelVelocity + t * (p2.flyWheelVelocity - p1.flyWheelVelocity);
+                dynamicTargetHoodPosition = p1.hoodPosition + t * (p2.hoodPosition - p1.hoodPosition);
+
+                dynamicTargetFlyWheelVelocity = Math.max(0, Math.min(rConstants.ShooterConstants.maximumFlyWheelVelocity, dynamicTargetFlyWheelVelocity));
+                dynamicTargetHoodPosition = Math.max(rConstants.ShooterConstants.minimumHoodPosition, Math.min(rConstants.ShooterConstants.maximumHoodPosition, dynamicTargetHoodPosition));
+                return;
+            }
+        }
+    }
 
 
     // ═══════════════════════════════════════════
-    //  UTILITY
+    //  HELPERS
     // ═══════════════════════════════════════════
 
     private Pose pointToPose(Point point) {
         return new Pose(point.getX(), point.getY(), Math.toRadians(point.getHeading()));
     }
 
+    private double getHeading() { return follower.getPose().getHeading(); }
+    private double getXPose() { return follower.getPose().getX(); }
+    private double getYPose() { return follower.getPose().getY(); }
 
+    private Pose getActiveGoalPose() {
+        return rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE
+                ? rConstants.FieldConstants.blueGoalPose
+                : rConstants.FieldConstants.redGoalPose;
+    }
 
+    private double getGoalX() { return getActiveGoalPose().getX(); }
+    private double getGoalY() { return getActiveGoalPose().getY(); }
+
+    private double getDistanceToGoal() {
+        double dx = getGoalX() - getXPose();
+        double dy = getGoalY() - getYPose();
+        return Math.sqrt(dx * dx + dy * dy);
+    }
 
 
     // ═══════════════════════════════════════════
