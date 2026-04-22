@@ -65,6 +65,7 @@ public class ShooterTuning extends OpMode {
     @Override
     public void loop(){
         follower.update();
+        robot.pinpointDriver.update();
 
         shooterSubsystem.setTargetVelocity(targetFlyWheelVelocity);
         shooterSubsystem.setHoodPosition(targetHoodPosition);

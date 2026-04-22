@@ -13,8 +13,12 @@ public class TurretSubsystem extends SubsystemBase {
     private double targetTurretAngle;
 
     private static final double ticksPerRevolution = 384.5;
-    private static final double gearRatio = 86.0 / 34.0;
-    private static final double ticksPerDegree = (ticksPerRevolution * gearRatio) / 360.0;
+    private static final double gearRatio = 86.0 / 35.0;
+    private static final double ticksPerRadian = (ticksPerRevolution / (2 * Math.PI)) * gearRatio;
+
+
+
+
 
     public TurretSubsystem(RobotHardwareMap robot){
         this.robot = robot;
@@ -22,24 +26,57 @@ public class TurretSubsystem extends SubsystemBase {
                 rConstants.TurretConstants.turretKp,
                 rConstants.TurretConstants.turretKd
         );
+
+        // Reset encoder so "0 ticks" = wherever the turret is at init
+        robot.turretMotor.setMode(com.qualcomm.robotcore.hardware.DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        robot.turretMotor.setMode(com.qualcomm.robotcore.hardware.DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+
+        // Apply direction config from constants
+        robot.turretMotor.setDirection(
+                rConstants.TurretConstants.turretMotorInverted
+                        ? com.qualcomm.robotcore.hardware.DcMotor.Direction.REVERSE
+                        : com.qualcomm.robotcore.hardware.DcMotor.Direction.FORWARD
+        );
+
+        // Brake by default so it holds position
+        robot.turretMotor.setZeroPowerBehavior(
+                rConstants.TurretConstants.floatModeEnabled
+                        ? com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.FLOAT
+                        : com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE
+        );
     }
+
+
+
+
 
     @Override
     public void periodic(){
         pdController.setGains(rConstants.TurretConstants.turretKp, rConstants.TurretConstants.turretKd);
 
-        double currentTicks = robot.turretMotor.getCurrentPosition();
-        double targetTicks = targetTurretAngle * ticksPerDegree;
+        double targetTicks = Math.toRadians(targetTurretAngle) * ticksPerRadian;
 
-        double error = targetTicks - currentTicks;
-        double output = pdController.calculate(0, error, -rConstants.TurretConstants.maxTurretPower, rConstants.TurretConstants.maxTurretPower);
+        double adjustment = pdController.calculate(
+                robot.turretMotor.getCurrentPosition(),
+                targetTicks,
+                -rConstants.TurretConstants.maxTurretPower,
+                rConstants.TurretConstants.maxTurretPower
+        );
 
-        robot.turretMotor.setPower(output);
+        robot.turretMotor.setPower(adjustment);
     }
 
-    public void setTurretAngle(double targetTurretAngle) { this.targetTurretAngle = targetTurretAngle; }
 
+
+
+
+    public void setTurretAngle(double targetTurretAngle) {
+        this.targetTurretAngle = Math.max(
+                -rConstants.TurretConstants.turretMaxLeftAngle,
+                Math.min(rConstants.TurretConstants.turretMaxRightAngle, targetTurretAngle)
+        );
+    }
     public double getTargetAngle() { return targetTurretAngle; }
     public double getCurrentTurretPosition() { return robot.turretMotor.getCurrentPosition(); }
-    public double getTargetTurretPosition() { return targetTurretAngle * ticksPerDegree; }
+    public double getTargetTurretPosition() { return Math.toRadians(targetTurretAngle) * ticksPerRadian; }
 }

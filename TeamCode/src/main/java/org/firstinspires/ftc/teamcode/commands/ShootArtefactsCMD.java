@@ -32,7 +32,6 @@ public class ShootArtefactsCMD extends SequentialCommandGroup {
                                     spindexerSubsystem.startPositionCheck(0);
                                 }),
                                 new WaitUntilCommand(spindexerSubsystem::spindexerPositionalReached),
-                                new WaitCommand(50),
                                 new TransferCMD(robot, spindexerSubsystem, 1),
 
                                 // 2nd Shot

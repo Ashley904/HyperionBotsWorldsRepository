@@ -10,8 +10,8 @@ import org.firstinspires.ftc.teamcode.customPathing.Point;
 public class rConstants {
     @Config
     public static class FieldConstants{
-        public static Pose blueGoalPose = new Pose(0.0, 0.0);
-        public static Pose redGoalPose = new Pose(133.0, 10.0);
+        public static Pose blueGoalPose = new Pose(136.0, 133.0);
+        public static Pose redGoalPose = new Pose(131.0, 9.0);
 
 
 
@@ -187,9 +187,9 @@ public class rConstants {
 
 
 
-        public static double[] intakingPositions = {0.165, 0.385, 0.622};
-        public static double[] shootingPositions = {0.275, 0.5, 0.73};
-        public static double[] encoderShootingPositions = {1320, 4000, 6775};
+        public static double[] intakingPositions = {0.1275, 0.345, 0.58};
+        public static double[] shootingPositions = {0.24, 0.46, 0.7};
+        public static double[] encoderShootingPositions = {1440, 4070, 6920};
 
 
 
@@ -201,7 +201,7 @@ public class rConstants {
 
 
 
-        public static double positionalTolerance = 1900;
+        public static double positionalTolerance = 2100;
     }
 
 
@@ -230,7 +230,7 @@ public class rConstants {
 
 
 
-        public static double flyWheelKs=0.19, flyWheelKf=0.000365, flyWheelKp=0.0025;
+        public static double flyWheelKs=0.195, flyWheelKf=0.000425, flyWheelKp=0.003;
         public static double nominalVoltage=13.4;
 
 
@@ -238,7 +238,7 @@ public class rConstants {
 
 
 
-        public static double maximumFlyWheelVelocity=1900;
+        public static double maximumFlyWheelVelocity=1820;
         public static double velocityReachedTolerance=30.0;
 
 
@@ -251,7 +251,7 @@ public class rConstants {
 
 
 
-        public static double minimumHoodPosition=0, maximumHoodPosition=0.775;
+        public static double minimumHoodPosition=0.4, maximumHoodPosition=0.7;
     }
 
 
@@ -268,14 +268,14 @@ public class rConstants {
 
 
 
-        public static double turretKp=0.0045, turretKd=0.325;
+        public static double turretKp=0.1, turretKd=0.25;
         public static double maxTurretPower=0.75;
 
 
 
 
 
-        public static double turretMaxLeftAngle = 125, turretMaxRightAngle = -125;
+        public static double turretMaxLeftAngle = 80, turretMaxRightAngle = 90;
         public static double turretOffset = 0;
     }
 
@@ -294,13 +294,13 @@ public class rConstants {
 
 
         public static double homePosition = 0.4;
-        public static double transferPosition = 0.51;
+        public static double transferPosition = 0.75;
 
 
 
 
-        public static long servoRiseTime = 90;
-        public static long servoHomingTime = 100;
+        public static long servoRiseTime = 102;
+        public static long servoHomingTime = 115;
     }
 
 
