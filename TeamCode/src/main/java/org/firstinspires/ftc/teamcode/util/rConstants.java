@@ -299,8 +299,8 @@ public class rConstants {
 
 
 
-        public static long servoRiseTime = 102;
-        public static long servoHomingTime = 115;
+        public static long servoRiseTime = 100;
+        public static long servoHomingTime = 105;
     }
 
 
