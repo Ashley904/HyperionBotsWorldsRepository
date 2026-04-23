@@ -165,7 +165,6 @@ public class WorldsRebuildTeleOp extends OpMode {
 
         shooterSubsystem.setHoodPosition(rConstants.ShooterConstants.minimumHoodPosition);
         shooterSubsystem.setTargetVelocity(0);
-
         CommandScheduler.getInstance().schedule(new InitializeTransferCMD(robot));
 
 
@@ -183,7 +182,6 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     @Override
     public void init_loop(){
-        intakeSubsystem.periodic();
         shooterSubsystem.periodic();
         spindexerSubsystem.periodic();
 
@@ -233,7 +231,8 @@ public class WorldsRebuildTeleOp extends OpMode {
         GamepadControlsManaging();
         BackgroundOperations();
         RobotDrive();
-        CalculateShooterParameters();
+        //CalculateShooterParameters();
+
 
         if(loopCount++ % 3 == 0) TelemetryUpdating();
     }
@@ -323,9 +322,7 @@ public class WorldsRebuildTeleOp extends OpMode {
             enableIntakeButtonReader.readValue();
             reverseIntakeButtonReader.readValue();
 
-            if(enableIntakeButtonReader.wasJustPressed()
-                    && intakeSubsystem.getState() != IntakeSubsystem.IntakeState.IntakingUnJamming
-                    && intakeSubsystem.getState() != IntakeSubsystem.IntakeState.OuttakingUnJamming){ //Intaking Control
+            if(enableIntakeButtonReader.wasJustPressed()){
                 switch(intakeSubsystem.getState()){
                     case Disabled:
                     case Reversing:
@@ -336,15 +333,11 @@ public class WorldsRebuildTeleOp extends OpMode {
                         intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled);
                         break;
                 }
-
-                spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.intakingPositions[0]);
                 RumbleGamePad(150);
             }
 
 
-            if(reverseIntakeButtonReader.wasJustPressed()
-                    && intakeSubsystem.getState() != IntakeSubsystem.IntakeState.IntakingUnJamming
-                    && intakeSubsystem.getState() != IntakeSubsystem.IntakeState.OuttakingUnJamming){ // Reversing Control
+            if(reverseIntakeButtonReader.wasJustPressed()){
                 switch(intakeSubsystem.getState()){
                     case Disabled:
                     case Intaking:
@@ -355,7 +348,6 @@ public class WorldsRebuildTeleOp extends OpMode {
                         intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled);
                         break;
                 }
-
                 RumbleGamePad(150);
             }
         }
@@ -399,16 +391,15 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     private void BackgroundOperations(){
         intakeSubsystem.periodic();
-
         shooterSubsystem.periodic();
-        turretSubsystem.periodic();
+        //turretSubsystem.periodic();
         spindexerSubsystem.periodic();
 
+        shooterSubsystem.setTargetVelocity(1320);
+        shooterSubsystem.setHoodPosition(0.6);
 
-        shooterSubsystem.setTargetVelocity(dynamicTargetFlyWheelVelocity);
-        shooterSubsystem.setHoodPosition(dynamicTargetHoodPosition);
-        turretSubsystem.setTurretAngle(0);
-
+        double angle = Math.toDegrees(-calculateTurretAngle()) + rConstants.TurretConstants.turretOffset;
+        //turretSubsystem.setTurretAngle(angle);
 
         SpindexerManaging();
         robot.pinpointDriver.update();
@@ -418,12 +409,10 @@ public class WorldsRebuildTeleOp extends OpMode {
         if(spindexerSubsystem.getSpindexerState() == SpindexerSubsystem.SpindexerState.Shooting
                 || intakeSubsystem.getState() != IntakeSubsystem.IntakeState.Intaking
                 || !spindexerSubsystem.spindexerPositionReached()) return;
+        if(loopCount % 5 != 0) return;
 
         double leftDistance = robot.leftDistanceSensor.getDistance(DistanceUnit.CM);
-        double rightDistance = robot.rightDistanceSensor.getDistance(DistanceUnit.CM);
-
-        boolean ballPresent = leftDistance <= rConstants.SensorConstants.distanceSensorOccupiedThreshold
-                || rightDistance <= rConstants.SensorConstants.distanceSensorOccupiedThreshold;
+        boolean ballPresent = leftDistance <= rConstants.SensorConstants.distanceSensorOccupiedThreshold;
 
         if(ballPresent){
             currentSpindexerIndex = (currentSpindexerIndex + 1) % rConstants.SpindexerConstants.intakingPositions.length;
@@ -438,8 +427,16 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
     private double calculateTurretAngle() {
-        Pose goalPose = getActiveGoalPose();
-        return Math.toDegrees(Math.atan2(goalPose.getY() - getYPose(), goalPose.getX() - getXPose()) - getHeading());
+        double turretFieldX = getXPose() +
+                rConstants.TurretConstants.turretXOffset * Math.cos(getHeading()) - rConstants.TurretConstants.turretYOffset * Math.sin(getHeading());
+        double turretFieldY = getYPose() +
+                rConstants.TurretConstants.turretXOffset * Math.sin(getHeading()) + rConstants.TurretConstants.turretYOffset * Math.cos(getHeading());
+
+        double deltaX = getGoalX() - turretFieldX;
+        double deltaY = getGoalY() - turretFieldY;
+        double angleToTarget = Math.atan2(deltaY, deltaX);
+
+        return angleToTarget - getHeading();
     }
     private Pose getActiveGoalPose() {
         return rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE
@@ -464,11 +461,7 @@ public class WorldsRebuildTeleOp extends OpMode {
     }
     private void InitializeCalibrationPoints() {
         calibrationPoints.clear();
-        calibrationPoints.add(new CalibrationPoints(36.0,  1110.0,  0.88));
-        calibrationPoints.add(new CalibrationPoints(61.0,  1230.0,  0.88));
-        calibrationPoints.add(new CalibrationPoints(88.0,  1350.0,  0.71));
-        calibrationPoints.add(new CalibrationPoints(132.0,  1670,  0.75));
-        calibrationPoints.add(new CalibrationPoints(150.0,  1750,  0.7));
+        calibrationPoints.add(new CalibrationPoints(0.0,  0.0,  0.0));
         calibrationPoints.sort(Comparator.comparingDouble(a -> a.distanceToGoal));
     }
     private void CalculateShooterParameters() {
@@ -543,21 +536,17 @@ public class WorldsRebuildTeleOp extends OpMode {
         telemetry.addData("Current Heading: ", "%.1f" , Math.toDegrees(getHeading()));
 
         telemetry.addData("Intake State: ", intakeSubsystem.getState());
-        telemetry.addData("Intake Velocity: ", "%.0f" , intakeSubsystem.getIntakeVelocity());
-        telemetry.addData("Intake Current Draw: ", "%.1f",  intakeSubsystem.getIntakeCurrentDraw());
 
         telemetry.addData("Spindexer State: ", spindexerSubsystem.getSpindexerState());
         telemetry.addData("Spindexer Velocity: ", spindexerSubsystem.getVelocity());
         telemetry.addData("Spindexer Position: ", spindexerSubsystem.getPosition());
         telemetry.addData("Spindexer Position Reached?: ", spindexerSubsystem.spindexerPositionReached());
 
-        telemetry.addData("Current FlyWheel State: ", rConstants.Enums.currentShooterState);
         telemetry.addData("Current FlyWheel Velocity: ", "%.0f", shooterSubsystem.getCurrentFlyWheelVelocity());
         telemetry.addData("Target FlyWheel Wheel Velocity: ", "%.0f", dynamicTargetFlyWheelVelocity);
-        telemetry.addData("Target Hood Position: ", "%.0f", dynamicTargetHoodPosition);
 
-        telemetry.addData("Turret Target Angle: ", "%.1f", turretSubsystem.getTargetAngle());
-        telemetry.addData("Turret Current Position: ", turretSubsystem.getCurrentTurretPosition());
+        telemetry.addData("Target Turret Angle: ", "%.1f", Math.toDegrees(calculateTurretAngle()));
+        telemetry.addData("Current Turret Angle: ", "%.1f", turretSubsystem.getCurrentAngle());
 
         telemetry.addData("Loop Time: ", elapsedTime.milliseconds());
         elapsedTime.reset();

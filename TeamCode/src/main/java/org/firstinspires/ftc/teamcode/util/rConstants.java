@@ -168,9 +168,9 @@ public class rConstants {
 
 
 
-        public static double currentAlert = 7.0;
-        public static double jamVelocityAlert = 800.0;
-        public static double jamTimeConfirmation = 150;
+        public static double currentAlert = 7.5;
+        public static double jamVelocityAlert = 700.0;
+        public static double jamTimeConfirmation = 100;
     }
 
 
@@ -187,9 +187,9 @@ public class rConstants {
 
 
 
-        public static double[] intakingPositions = {0.1275, 0.345, 0.58};
-        public static double[] shootingPositions = {0.24, 0.46, 0.7};
-        public static double[] encoderShootingPositions = {1440, 4070, 6920};
+        public static double[] intakingPositions = {0.19, 0.435, 0.665};
+        public static double[] shootingPositions = {0.3, 0.55, 0.79};
+        public static double[] encoderShootingPositions = {1490, 4180, 6950};
 
 
 
@@ -201,7 +201,7 @@ public class rConstants {
 
 
 
-        public static double positionalTolerance = 2100;
+        public static double positionalTolerance = 2500;
     }
 
 
@@ -230,7 +230,7 @@ public class rConstants {
 
 
 
-        public static double flyWheelKs=0.195, flyWheelKf=0.000425, flyWheelKp=0.003;
+        public static double flyWheelKs=0.15, flyWheelKf=0.00045, flyWheelKp=0.0018;
         public static double nominalVoltage=13.4;
 
 
@@ -238,8 +238,8 @@ public class rConstants {
 
 
 
-        public static double maximumFlyWheelVelocity=1820;
-        public static double velocityReachedTolerance=30.0;
+        public static double maximumFlyWheelVelocity=3000;
+        public static double velocityReachedTolerance=35.0;
 
 
 
@@ -268,15 +268,21 @@ public class rConstants {
 
 
 
-        public static double turretKp=0.1, turretKd=0.25;
+        public static double turretKp=0.025, turretKd=0.35;
         public static double maxTurretPower=0.75;
 
 
 
 
 
-        public static double turretMaxLeftAngle = 80, turretMaxRightAngle = 90;
-        public static double turretOffset = 0;
+        public static double turretMinAngle = 105, turretMaxAngle = 255;
+        public static double turretOffset = 180;
+
+
+
+
+
+        public static double turretXOffset = 0.0, turretYOffset = 0.0;
     }
 
 
@@ -293,14 +299,14 @@ public class rConstants {
 
 
 
-        public static double homePosition = 0.4;
-        public static double transferPosition = 0.75;
+        public static double homePosition = 0.415;
+        public static double transferPosition = 0.8;
 
 
 
 
-        public static long servoRiseTime = 100;
-        public static long servoHomingTime = 105;
+        public static long servoRiseTime = 80;
+        public static long servoHomingTime = 50;
     }
 
 

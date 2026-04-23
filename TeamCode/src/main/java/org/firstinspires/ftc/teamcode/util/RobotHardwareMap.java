@@ -76,7 +76,6 @@ public class RobotHardwareMap {
         initializeShooter(hardwareMap);
         initializeTransfer(hardwareMap);
         initializeSpindexer(hardwareMap);
-        initializeColorSensors(hardwareMap);
         initializePinpointDriver(hardwareMap);
         initializeDistanceSensors(hardwareMap);
 
@@ -171,15 +170,6 @@ public class RobotHardwareMap {
                 rConstants.PinpointConstants.strafePodInverted ? GoBildaPinpointDriver.EncoderDirection.REVERSED : GoBildaPinpointDriver.EncoderDirection.FORWARD);
 
         pinpointDriver.setOffsets(rConstants.PinpointConstants.strafePodOffset, rConstants.PinpointConstants.forwardPodOffset, DistanceUnit.INCH);
-    }
-
-
-
-
-
-    public void initializeColorSensors(HardwareMap hardwareMap){
-        leftSpindexerColorSensor = hardwareMap.get(ColorRangeSensor.class, rConstants.SensorConstants.leftSpindexerColorSensorName);
-        rightSpindexerColorSensor = hardwareMap.get(ColorRangeSensor.class, rConstants.SensorConstants.rightSpindexerColorSensorName);
     }
 
 

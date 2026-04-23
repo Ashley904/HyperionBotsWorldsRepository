@@ -49,9 +49,8 @@ public class TurretTuning extends OpMode {
         turretSubsystem.setTurretAngle(targetTurretAngle);
         turretSubsystem.periodic();
 
-
-        telemetry.addData("Current Turret Position: ", turretSubsystem.getCurrentTurretPosition());
-        telemetry.addData("Target Turret Position: ", turretSubsystem.getTargetTurretPosition());
+        telemetry.addData("Current Turret Position: ", turretSubsystem.getCurrentAngle());
+        telemetry.addData("Target Turret Position: ", turretSubsystem.getTargetAngle());
         telemetry.update();
     }
 }
