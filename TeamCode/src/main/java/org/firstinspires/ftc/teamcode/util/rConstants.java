@@ -85,6 +85,7 @@ public class rConstants {
 
 
         public static double headingKp=0.0, headingKd=0.0;
+        public static double autoLockHeadingTolerance = 5.0;
 
 
 
@@ -168,8 +169,8 @@ public class rConstants {
 
 
 
-        public static double currentAlert = 7.5;
-        public static double jamVelocityAlert = 700.0;
+        public static double currentAlert = 5.0;
+        public static double jamVelocityAlert = 300.0;
         public static double jamTimeConfirmation = 100;
     }
 
@@ -187,21 +188,22 @@ public class rConstants {
 
 
 
-        public static double[] intakingPositions = {0.19, 0.435, 0.665};
-        public static double[] shootingPositions = {0.3, 0.55, 0.79};
-        public static double[] encoderShootingPositions = {1490, 4180, 6950};
+        public static double[] intakingPositions = {0.21, 0.43, 0.68};
+        public static double[] shootingPositions = {0.30, 0.57, 0.801};
+        public static double[] encoderShootingPositions = {1184, 4153, 6742};
 
 
 
 
         public static double spindexerVelocityCheckDelay = 10;
         public static double minimumPeakVelocity = 1000;
-        public static double decelerationTriggerRatio = 0.5;
+        public static double decelerationTriggerRatio = 0.25;
 
 
 
 
-        public static double positionalTolerance = 2500;
+        public static double positionalTolerance = 1200;
+        public static double positionalPercentageTolerance = 0.275;
     }
 
 
@@ -230,7 +232,7 @@ public class rConstants {
 
 
 
-        public static double flyWheelKs=0.15, flyWheelKf=0.00045, flyWheelKp=0.0018;
+        public static double flyWheelKs=0.15, flyWheelKf=0.00047, flyWheelKp=0.0018;
         public static double nominalVoltage=13.4;
 
 
@@ -251,7 +253,7 @@ public class rConstants {
 
 
 
-        public static double minimumHoodPosition=0.4, maximumHoodPosition=0.7;
+        public static double minimumHoodPosition=0.25, maximumHoodPosition=0.665;
     }
 
 
@@ -276,13 +278,7 @@ public class rConstants {
 
 
         public static double turretMinAngle = 105, turretMaxAngle = 255;
-        public static double turretOffset = 180;
-
-
-
-
-
-        public static double turretXOffset = 0.0, turretYOffset = 0.0;
+        public static double turretOffset = 0;
     }
 
 
@@ -300,13 +296,13 @@ public class rConstants {
 
 
         public static double homePosition = 0.415;
-        public static double transferPosition = 0.8;
+        public static double transferPosition = 0.31;
 
 
 
 
-        public static long servoRiseTime = 80;
-        public static long servoHomingTime = 50;
+        public static long servoRiseTime = 180;
+        public static long servoHomingTime = 40;
     }
 
 
@@ -323,7 +319,7 @@ public class rConstants {
         public static GamepadKeys.Button cycleDriveModes = GamepadKeys.Button.DPAD_DOWN;
         public static GamepadKeys.Button enableIntake = GamepadKeys.Button.RIGHT_STICK_BUTTON;
         public static GamepadKeys.Button reverseIntake = GamepadKeys.Button.LEFT_STICK_BUTTON;
-        public static GamepadKeys.Button shootArtefacts = GamepadKeys.Button.A;
+        public static GamepadKeys.Button shootArtefacts = GamepadKeys.Button.RIGHT_BUMPER;
         public static GamepadKeys.Button indexSpindexer = GamepadKeys.Button.RIGHT_BUMPER;
 
 
@@ -368,7 +364,7 @@ public class rConstants {
 
 
 
-        public static double distanceSensorOccupiedThreshold = 10.0; //CM
+        public static double distanceSensorOccupiedThreshold = 9.0; //CM
         public static double leftSpindexerColorSensorOccupiedThreshold = 0.0;
         public static double rightSpindexerColorSensorOccupiedThreshold = 0.0;
     }

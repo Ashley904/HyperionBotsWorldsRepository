@@ -14,7 +14,6 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.commands.InitializeTransferCMD;
 import org.firstinspires.ftc.teamcode.commands.ShootArtefactsCMD;
@@ -24,7 +23,6 @@ import org.firstinspires.ftc.teamcode.subsystems.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.ShooterSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.SpindexerSensorsSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.SpindexerSubsystem;
-import org.firstinspires.ftc.teamcode.subsystems.TurretSubsystem;
 import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
 
 import org.firstinspires.ftc.teamcode.util.rConstants;
@@ -45,7 +43,6 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
     IntakeSubsystem intakeSubsystem;
-    TurretSubsystem turretSubsystem;
     ShooterSubsystem shooterSubsystem;
     SpindexerSubsystem spindexerSubsystem;
     SpindexerSensorsSubsystem spindexerSensorsSubsystem;
@@ -55,6 +52,8 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
     ShootArtefactsCMD shootArtefactsCMD;
+    private boolean autoAimActive = false;
+    private static final double HEADING_TOLERANCE_RAD = Math.toRadians(5.0);
 
 
 
@@ -93,6 +92,19 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     private static final List<CalibrationPoints> calibrationPoints = new ArrayList<>();
     double dynamicTargetFlyWheelVelocity = 0.0, dynamicTargetHoodPosition = 0.0;
+
+
+
+
+
+
+    //----------Precomputed Shooter Lookup Table----------//
+    private static final double LOOKUP_TABLE_RESOLUTION = 0.01;
+    private static final double LOOKUP_TABLE_MAX_DISTANCE = 200.0;
+    private static final int LOOKUP_TABLE_SIZE = (int) (LOOKUP_TABLE_MAX_DISTANCE / LOOKUP_TABLE_RESOLUTION) + 1;
+    private final double[] precomputedFlyWheelVelocities = new double[LOOKUP_TABLE_SIZE];
+    private final double[] precomputedHoodPositions = new double[LOOKUP_TABLE_SIZE];
+    //----------end----------//
 
 
 
@@ -139,7 +151,6 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
         intakeSubsystem = new IntakeSubsystem(robot);
-        turretSubsystem = new TurretSubsystem(robot);
         shooterSubsystem = new ShooterSubsystem(robot);
         spindexerSubsystem = new SpindexerSubsystem(robot);
         spindexerSensorsSubsystem = new SpindexerSensorsSubsystem(robot);
@@ -152,6 +163,7 @@ public class WorldsRebuildTeleOp extends OpMode {
         //Calling Functions
         InitializeGamePadControls();
         InitializeCalibrationPoints();
+        PrecomputeShooterLookupTable();
 
 
 
@@ -231,8 +243,7 @@ public class WorldsRebuildTeleOp extends OpMode {
         GamepadControlsManaging();
         BackgroundOperations();
         RobotDrive();
-        //CalculateShooterParameters();
-
+        CalculateShooterParameters();
 
         if(loopCount++ % 3 == 0) TelemetryUpdating();
     }
@@ -266,8 +277,15 @@ public class WorldsRebuildTeleOp extends OpMode {
 
         //----------Heading Correction----------//
         headingPDController.setGains(rConstants.DriveTrainConstants.headingKp, rConstants.DriveTrainConstants.headingKd);
+        if(autoAimActive && (shootArtefactsCMD == null || !CommandScheduler.getInstance().isScheduled(shootArtefactsCMD))) {
+            autoAimActive = false;
+            targetHeading = heading;
+        }
 
-        if(Math.abs(rConstants.GamePadControls.gamepad1EX.getRightX()) > 0.05) {
+        if(autoAimActive) {
+            targetHeading = getAngleToGoal();
+            headingCorrectionEnabled = true;
+        } else if(Math.abs(rConstants.GamePadControls.gamepad1EX.getRightX()) > 0.05) {
             headingCorrectionEnabled = false;
             targetHeading = heading;
         } else {
@@ -279,7 +297,7 @@ public class WorldsRebuildTeleOp extends OpMode {
             while(headingError > Math.PI) headingError -= 2 * Math.PI;
             while(headingError < -Math.PI) headingError += 2 * Math.PI;
 
-            rx = headingPDController.calculate(0, headingError, -0.75, 0.75);
+            rx = headingPDController.calculate(0, headingError, -0.815, 0.815);
         }
         //----------end-----------//
 
@@ -369,9 +387,12 @@ public class WorldsRebuildTeleOp extends OpMode {
 
         //----------Cycle Artefacts----------//
         shootArtefactsButtonReader.readValue();
-        if(shootArtefactsButtonReader.wasJustPressed()) { CommandScheduler.getInstance().schedule(new ShootArtefactsCMD(spindexerSubsystem, intakeSubsystem, robot)); }
+        if(shootArtefactsButtonReader.wasJustPressed()) {
+            shootArtefactsCMD = new ShootArtefactsCMD(spindexerSubsystem, intakeSubsystem, robot);
+            CommandScheduler.getInstance().schedule(shootArtefactsCMD);
+            autoAimActive = true;
+        }
         //----------end----------//
-
     }
     private void InitializeGamePadControls(){
         rConstants.GamePadControls.gamepad1EX = new GamepadEx(gamepad1);
@@ -392,24 +413,19 @@ public class WorldsRebuildTeleOp extends OpMode {
     private void BackgroundOperations(){
         intakeSubsystem.periodic();
         shooterSubsystem.periodic();
-        //turretSubsystem.periodic();
         spindexerSubsystem.periodic();
 
-        shooterSubsystem.setTargetVelocity(1320);
-        shooterSubsystem.setHoodPosition(0.6);
-
-        double angle = Math.toDegrees(-calculateTurretAngle()) + rConstants.TurretConstants.turretOffset;
-        //turretSubsystem.setTurretAngle(angle);
+        shooterSubsystem.setTargetVelocity(dynamicTargetFlyWheelVelocity);
+        shooterSubsystem.setHoodPosition(dynamicTargetHoodPosition);
 
         SpindexerManaging();
-        robot.pinpointDriver.update();
         CommandScheduler.getInstance().run();
     }
     private void SpindexerManaging(){
         if(spindexerSubsystem.getSpindexerState() == SpindexerSubsystem.SpindexerState.Shooting
                 || intakeSubsystem.getState() != IntakeSubsystem.IntakeState.Intaking
                 || !spindexerSubsystem.spindexerPositionReached()) return;
-        if(loopCount % 5 != 0) return;
+        if(loopCount % 3 != 0) return;
 
         double leftDistance = robot.leftDistanceSensor.getDistance(DistanceUnit.CM);
         boolean ballPresent = leftDistance <= rConstants.SensorConstants.distanceSensorOccupiedThreshold;
@@ -426,17 +442,17 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
 
-    private double calculateTurretAngle() {
-        double turretFieldX = getXPose() +
-                rConstants.TurretConstants.turretXOffset * Math.cos(getHeading()) - rConstants.TurretConstants.turretYOffset * Math.sin(getHeading());
-        double turretFieldY = getYPose() +
-                rConstants.TurretConstants.turretXOffset * Math.sin(getHeading()) + rConstants.TurretConstants.turretYOffset * Math.cos(getHeading());
 
-        double deltaX = getGoalX() - turretFieldX;
-        double deltaY = getGoalY() - turretFieldY;
-        double angleToTarget = Math.atan2(deltaY, deltaX);
-
-        return angleToTarget - getHeading();
+    private double getAngleToGoal() {
+        double deltaX = getGoalX() - getXPose();
+        double deltaY = getGoalY() - getYPose();
+        return Math.atan2(deltaY, deltaX);
+    }
+    public boolean isAimedAtGoal() {
+        double error = getAngleToGoal() - getHeading();
+        while(error > Math.PI) error -= 2 * Math.PI;
+        while(error < -Math.PI) error += 2 * Math.PI;
+        return Math.abs(error) <= rConstants.DriveTrainConstants.autoLockHeadingTolerance;
     }
     private Pose getActiveGoalPose() {
         return rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE
@@ -457,16 +473,70 @@ public class WorldsRebuildTeleOp extends OpMode {
             this.distanceToGoal   = distanceToGoal;
             this.flyWheelVelocity = flyWheelVelocity;
             this.hoodPosition     = hoodPosition;
+
         }
     }
     private void InitializeCalibrationPoints() {
         calibrationPoints.clear();
-        calibrationPoints.add(new CalibrationPoints(0.0,  0.0,  0.0));
+
+        calibrationPoints.add(new CalibrationPoints(45.2,  1160,  0.6));
+        calibrationPoints.add(new CalibrationPoints(80.1,  1185,  0.6));
+        calibrationPoints.add(new CalibrationPoints(110.8,  1465,  0.5));
+        calibrationPoints.add(new CalibrationPoints(113.0,  1645,  0.41));
         calibrationPoints.sort(Comparator.comparingDouble(a -> a.distanceToGoal));
+    }
+    private void PrecomputeShooterLookupTable() {
+        // Build the lookup table once at init by running the same interpolation logic
+        for (int i = 0; i < LOOKUP_TABLE_SIZE; i++) {
+            double distance = i * LOOKUP_TABLE_RESOLUTION;
+
+            if (calibrationPoints.isEmpty()) {
+                precomputedFlyWheelVelocities[i] = 0.0;
+                precomputedHoodPositions[i] = 0.0;
+                continue;
+            }
+
+            // Below the lowest calibration point: clamp to first point
+            if (distance <= calibrationPoints.get(0).distanceToGoal) {
+                precomputedFlyWheelVelocities[i] = calibrationPoints.get(0).flyWheelVelocity;
+                precomputedHoodPositions[i] = calibrationPoints.get(0).hoodPosition;
+                continue;
+            }
+
+            // Above the highest calibration point: clamp to last point
+            CalibrationPoints last = calibrationPoints.get(calibrationPoints.size() - 1);
+            if (distance >= last.distanceToGoal) {
+                precomputedFlyWheelVelocities[i] = last.flyWheelVelocity;
+                precomputedHoodPositions[i] = last.hoodPosition;
+                continue;
+            }
+
+            // In between: linear interpolation between the two surrounding points
+            for (int j = 0; j < calibrationPoints.size() - 1; j++) {
+                CalibrationPoints p1 = calibrationPoints.get(j);
+                CalibrationPoints p2 = calibrationPoints.get(j + 1);
+
+                if (distance >= p1.distanceToGoal && distance <= p2.distanceToGoal) {
+                    double t = (distance - p1.distanceToGoal) / (p2.distanceToGoal - p1.distanceToGoal);
+
+                    double flyWheelVel = p1.flyWheelVelocity + t * (p2.flyWheelVelocity - p1.flyWheelVelocity);
+                    double hoodPos = p1.hoodPosition + t * (p2.hoodPosition - p1.hoodPosition);
+
+                    // Clamp to allowed ranges
+                    flyWheelVel = Math.max(0, Math.min(rConstants.ShooterConstants.maximumFlyWheelVelocity, flyWheelVel));
+                    hoodPos = Math.max(rConstants.ShooterConstants.minimumHoodPosition, Math.min(rConstants.ShooterConstants.maximumHoodPosition, hoodPos));
+
+                    precomputedFlyWheelVelocities[i] = flyWheelVel;
+                    precomputedHoodPositions[i] = hoodPos;
+                    break;
+                }
+            }
+        }
     }
     private void CalculateShooterParameters() {
         double distance = getDistanceToGoal();
 
+        // Live velocity compensation (depends on robot motion, can't be precomputed)
         double velX = follower.getVelocity().getYComponent();
         double velY = follower.getVelocity().getXComponent();
 
@@ -485,40 +555,13 @@ public class WorldsRebuildTeleOp extends OpMode {
         double compensatedDistance = distance - (approachVelocity * flightTime);
         compensatedDistance = Math.max(0, compensatedDistance);
 
-        if (calibrationPoints.isEmpty()) {
-            dynamicTargetFlyWheelVelocity = 0.0;
-            dynamicTargetHoodPosition     = 0.0;
-            return;
-        }
+        // Fast O(1) lookup instead of looping through calibration points and interpolating
+        int index = (int) (compensatedDistance / LOOKUP_TABLE_RESOLUTION);
+        if (index < 0) index = 0;
+        if (index >= LOOKUP_TABLE_SIZE) index = LOOKUP_TABLE_SIZE - 1;
 
-        if (compensatedDistance <= calibrationPoints.get(0).distanceToGoal) {
-            dynamicTargetFlyWheelVelocity = calibrationPoints.get(0).flyWheelVelocity;
-            dynamicTargetHoodPosition     = calibrationPoints.get(0).hoodPosition;
-            return;
-        }
-
-        if (compensatedDistance >= calibrationPoints.get(calibrationPoints.size() - 1).distanceToGoal) {
-            CalibrationPoints last = calibrationPoints.get(calibrationPoints.size() - 1);
-            dynamicTargetFlyWheelVelocity = last.flyWheelVelocity;
-            dynamicTargetHoodPosition     = last.hoodPosition;
-            return;
-        }
-
-        for (int i = 0; i < calibrationPoints.size() - 1; i++) {
-            CalibrationPoints p1 = calibrationPoints.get(i);
-            CalibrationPoints p2 = calibrationPoints.get(i + 1);
-
-            if (compensatedDistance >= p1.distanceToGoal && compensatedDistance <= p2.distanceToGoal) {
-                double t = (compensatedDistance - p1.distanceToGoal) / (p2.distanceToGoal - p1.distanceToGoal);
-
-                dynamicTargetFlyWheelVelocity = p1.flyWheelVelocity + t * (p2.flyWheelVelocity - p1.flyWheelVelocity);
-                dynamicTargetHoodPosition = p1.hoodPosition + t * (p2.hoodPosition - p1.hoodPosition);
-
-                dynamicTargetFlyWheelVelocity = Math.max(0, Math.min(rConstants.ShooterConstants.maximumFlyWheelVelocity, dynamicTargetFlyWheelVelocity));
-                dynamicTargetHoodPosition = Math.max(rConstants.ShooterConstants.minimumHoodPosition, Math.min(rConstants.ShooterConstants.maximumHoodPosition, dynamicTargetHoodPosition));
-                return;
-            }
-        }
+        dynamicTargetFlyWheelVelocity = precomputedFlyWheelVelocities[index];
+        dynamicTargetHoodPosition = precomputedHoodPositions[index];
     }
 
 
@@ -534,6 +577,7 @@ public class WorldsRebuildTeleOp extends OpMode {
         telemetry.addData("Y Pose: ",  "%.1f" , getYPose());
         telemetry.addData("Distance To Goal: ", "%.1f", getDistanceToGoal());
         telemetry.addData("Current Heading: ", "%.1f" , Math.toDegrees(getHeading()));
+        telemetry.addData("Target Heading To Goal: ", "%.1f", Math.toDegrees(getAngleToGoal()));
 
         telemetry.addData("Intake State: ", intakeSubsystem.getState());
 
@@ -545,8 +589,8 @@ public class WorldsRebuildTeleOp extends OpMode {
         telemetry.addData("Current FlyWheel Velocity: ", "%.0f", shooterSubsystem.getCurrentFlyWheelVelocity());
         telemetry.addData("Target FlyWheel Wheel Velocity: ", "%.0f", dynamicTargetFlyWheelVelocity);
 
-        telemetry.addData("Target Turret Angle: ", "%.1f", Math.toDegrees(calculateTurretAngle()));
-        telemetry.addData("Current Turret Angle: ", "%.1f", turretSubsystem.getCurrentAngle());
+        telemetry.addData("Auto-Aim Active: ", autoAimActive);
+        telemetry.addData("Aimed At Goal?: ", isAimedAtGoal());
 
         telemetry.addData("Loop Time: ", elapsedTime.milliseconds());
         elapsedTime.reset();
@@ -575,13 +619,7 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
     private double getDistanceToGoal() {
-        double goalX = getGoalX();
-        double goalY = getGoalY();
-
-        double dx = goalX - getXPose();
-        double dy = goalY - getYPose();
-
-        return Math.sqrt(dx * dx + dy * dy);
+        return follower.getPose().distanceFrom(getActiveGoalPose());
     }
 
 

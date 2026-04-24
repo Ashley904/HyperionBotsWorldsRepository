@@ -19,27 +19,35 @@ public class ShootArtefactsCMD extends SequentialCommandGroup {
         this.spindexerSubsystem = spindexerSubsystem;
         this.intakeSubsystem = intakeSubsystem;
 
+        // Precompute the fire-trigger encoder values for each shot.
+        // Each shot fires when the encoder has traveled 50% of the way between the previous position and the current target.
+        double shot1Trigger = 0 + (rConstants.SpindexerConstants.encoderShootingPositions[0] - 0) * rConstants.SpindexerConstants.positionalPercentageTolerance;
+        double shot2Trigger = rConstants.SpindexerConstants.encoderShootingPositions[0] + (rConstants.SpindexerConstants.encoderShootingPositions[1] - rConstants.SpindexerConstants.encoderShootingPositions[0]) * rConstants.SpindexerConstants.positionalPercentageTolerance;
+        double shot3Trigger = rConstants.SpindexerConstants.encoderShootingPositions[1] + (rConstants.SpindexerConstants.encoderShootingPositions[2] - rConstants.SpindexerConstants.encoderShootingPositions[1]) * rConstants.SpindexerConstants.positionalPercentageTolerance;
+
         addCommands(
                 new ConditionalCommand(
                         new InstantCommand(),
                         new SequentialCommandGroup(
                                 new InstantCommand(() ->  intakeSubsystem.setState(IntakeSubsystem.IntakeState.Idling)),
                                 new WaitCommand(200),
+
                                 // 1st Shot
                                 new InstantCommand(() -> {
                                     spindexerSubsystem.setSpindexerState(SpindexerSubsystem.SpindexerState.Shooting);
                                     spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.shootingPositions[0]);
-                                    spindexerSubsystem.startPositionCheck(0);
                                 }),
-                                new WaitUntilCommand(spindexerSubsystem::spindexerPositionalReached),
+                                new WaitUntilCommand(() -> spindexerSubsystem.getPosition() >= shot1Trigger),
                                 new TransferCMD(robot, spindexerSubsystem, 1),
 
                                 // 2nd Shot
-                                new WaitUntilCommand(spindexerSubsystem::spindexerPositionalReached),
+                                new InstantCommand(() -> spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.shootingPositions[1])),
+                                new WaitUntilCommand(() -> spindexerSubsystem.getPosition() >= shot2Trigger),
                                 new TransferCMD(robot, spindexerSubsystem, 2),
 
                                 // 3rd Shot
-                                new WaitUntilCommand(spindexerSubsystem::spindexerPositionalReached),
+                                new InstantCommand(() -> spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.shootingPositions[2])),
+                                new WaitUntilCommand(() -> spindexerSubsystem.getPosition() >= shot3Trigger),
                                 new TransferCMD(robot, spindexerSubsystem, 1),
 
                                 // Reset

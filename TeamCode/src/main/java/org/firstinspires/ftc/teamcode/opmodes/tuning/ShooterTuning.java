@@ -120,7 +120,6 @@ public class ShooterTuning extends OpMode {
     @Override
     public void loop(){
         follower.update();
-        robot.pinpointDriver.update();
 
 
 
@@ -130,11 +129,11 @@ public class ShooterTuning extends OpMode {
 
 
 
-        //----------Cycle Artefacts----------//
+        //----------Shoot Artefact----------//
         transferArtefactButtonReader.readValue();
         if(transferArtefactButtonReader.wasJustPressed()) { CommandScheduler.getInstance().schedule(new TuningTransferCMD(robot)); }
-        //----------end----------//
         CommandScheduler.getInstance().run();
+        //----------end----------//
 
 
 
@@ -159,11 +158,7 @@ public class ShooterTuning extends OpMode {
     }
     private double getXPose() { return follower.getPose().getX(); }
     private double getYPose() { return follower.getPose().getY(); }
-    private double getGoalX() { return getActiveGoalPose().getX(); }
-    private double getGoalY() { return getActiveGoalPose().getY(); }
     private double getDistanceToGoal() {
-        double dx = getGoalX() - getXPose();
-        double dy = getGoalY() - getYPose();
-        return Math.sqrt(dx * dx + dy * dy);
+        return follower.getPose().distanceFrom(getActiveGoalPose());
     }
 }

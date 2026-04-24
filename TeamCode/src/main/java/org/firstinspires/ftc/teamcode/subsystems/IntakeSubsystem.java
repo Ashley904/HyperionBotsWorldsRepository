@@ -54,7 +54,6 @@ public class IntakeSubsystem extends SubsystemBase {
         cachedOverCurrent = robot.intakeMotor.isOverCurrent();
 
         IntakeSpeedControl();
-        JammingControl();
     }
 
 
