@@ -62,3 +62,4 @@ public class ShootArtefactsCMD extends SequentialCommandGroup {
         );
     }
 }
+//cl
