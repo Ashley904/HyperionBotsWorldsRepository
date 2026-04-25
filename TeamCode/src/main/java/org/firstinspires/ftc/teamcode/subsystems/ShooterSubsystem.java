@@ -18,7 +18,6 @@ public class ShooterSubsystem extends SubsystemBase {
 
 
     private double cachedLeftFlyWheelMotorVelocity;
-    private double cachedRightRightFlyWheelMotorVelocity;
     private double cachedVoltage;
 
 
@@ -47,7 +46,6 @@ public class ShooterSubsystem extends SubsystemBase {
     @Override
     public void periodic() {
         cachedLeftFlyWheelMotorVelocity = robot.leftFlyWheelMotor.getVelocity();
-        cachedRightRightFlyWheelMotorVelocity = robot.rightFlyWheelMotor.getVelocity();
         try { cachedVoltage = robot.hardwareMap.voltageSensor.iterator().next().getVoltage(); }
         catch (Exception e) { cachedVoltage = rConstants.ShooterConstants.nominalVoltage; }
 
@@ -91,7 +89,7 @@ public class ShooterSubsystem extends SubsystemBase {
 
 
     // Helpers
-    public double getCurrentFlyWheelVelocity() { return (cachedLeftFlyWheelMotorVelocity + cachedRightRightFlyWheelMotorVelocity) / 2.0; }
+    public double getCurrentFlyWheelVelocity() { return cachedLeftFlyWheelMotorVelocity; }
     private double getVoltageCompensation() { return rConstants.ShooterConstants.nominalVoltage / cachedVoltage; }
     private double getCurrentVoltage() { return cachedVoltage; }
 

@@ -5,8 +5,6 @@ import com.arcrobotics.ftclib.gamepad.GamepadEx;
 import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 import com.pedropathing.geometry.Pose;
 
-import org.firstinspires.ftc.teamcode.customPathing.Point;
-
 public class rConstants {
     @Config
     public static class FieldConstants{
@@ -18,6 +16,7 @@ public class rConstants {
 
 
         public static Pose startingPose = new Pose(72.0, 72.0);
+        public static Pose resetPose = new Pose(133.0, 72.0);
     }
 
 
@@ -42,6 +41,13 @@ public class rConstants {
 
         public enum ShooterState {Disabled, Accelerating, TargetReached}
         public static ShooterState currentShooterState = ShooterState.Disabled;
+
+
+
+
+
+        public enum StartingPosition {BlueClose, BlueFar, RedClose, RedFar}
+        public static StartingPosition selectedStartingPosition = StartingPosition.RedClose;
     }
 
 
@@ -92,7 +98,7 @@ public class rConstants {
 
 
         public static double driveCubicTerm=0.6, driveLinearTerm=0.5;
-        public static double maximumDriveTrainSpeed=1.0, minimumDriveTrainSpeed=0.525;
+        public static double maximumDriveTrainSpeed=1.0, minimumDriveTrainSpeed=0.525;// Lower this value if you want ot be able ton drvie at a slower spped when holding right trigger
     }
 
 
@@ -160,7 +166,7 @@ public class rConstants {
 
 
 
-        public static double disabledSpeed = 0.0;
+        public static double disabledSpeed = 0.0;//to keep intake on if needed (.2 max)
         public static double intakingSpeed = 1.0;
         public static double reversingSpeed = -1.0;
         public static double idlingSpeed = 0.9;
@@ -169,8 +175,8 @@ public class rConstants {
 
 
 
-        public static double currentAlert = 5.0;
-        public static double jamVelocityAlert = 300.0;
+        public static double currentAlert = 6.25;
+        public static double jamVelocityAlert = 600.0;
         public static double jamTimeConfirmation = 100;
     }
 
@@ -188,9 +194,9 @@ public class rConstants {
 
 
 
-        public static double[] intakingPositions = {0.21, 0.43, 0.68};
-        public static double[] shootingPositions = {0.30, 0.57, 0.801};
-        public static double[] encoderShootingPositions = {1184, 4153, 6742};
+        public static double[] intakingPositions = {0.175, 0.415, 0.66};
+        public static double[] shootingPositions = {0.285, 0.535, 0.78};
+        public static double[] encoderShootingPositions = {1300, 4040, 6760};
 
 
 
@@ -203,7 +209,7 @@ public class rConstants {
 
 
         public static double positionalTolerance = 1200;
-        public static double positionalPercentageTolerance = 0.275;
+        public static double positionalPercentageTolerance = 0.815;// The higher this value is the longer the transfer will wait before it tranfers
     }
 
 
@@ -226,13 +232,13 @@ public class rConstants {
 
 
 
-        public static boolean leftFlyWheelMotorInverted = false;
-        public static boolean rightFlyWheelMotorInverted = true;
+        public static boolean leftFlyWheelMotorInverted = true; //if flywheel goes backwards, change to false.
+        public static boolean rightFlyWheelMotorInverted = false;
         public static boolean floatModeEnabled=false;
 
 
 
-        public static double flyWheelKs=0.15, flyWheelKf=0.00047, flyWheelKp=0.0018;
+        public static double flyWheelKs=0.17, flyWheelKf=0.00036, flyWheelKp=0.002; // Retune these if needed
         public static double nominalVoltage=13.4;
 
 
@@ -240,8 +246,8 @@ public class rConstants {
 
 
 
-        public static double maximumFlyWheelVelocity=3000;
-        public static double velocityReachedTolerance=35.0;
+        public static double maximumFlyWheelVelocity=2120;  // Retune these if needed
+        public static double velocityReachedTolerance=65.0;
 
 
 
@@ -253,7 +259,7 @@ public class rConstants {
 
 
 
-        public static double minimumHoodPosition=0.25, maximumHoodPosition=0.665;
+        public static double minimumHoodPosition=0.25, maximumHoodPosition=0.68;  // Retune these if needed
     }
 
 
@@ -277,8 +283,29 @@ public class rConstants {
 
 
 
-        public static double turretMinAngle = 105, turretMaxAngle = 255;
+        public static double turretMinAngle = -50, turretMaxAngle = 50;
         public static double turretOffset = 0;
+    }
+
+
+
+
+
+    @Config
+    public static class LimelightAutoAimConstants{
+        public static double limelightKp = 0.03;
+        public static double limelightKd = 0.00215;
+
+
+
+
+
+        public static double maxCorrectionPower = 0.85;
+        public static double limelightTurnDirection = -1;
+        public static double limelightHeadingTolerance = 2;
+        public static double targetingOffset = 5.0;  // Play around with this on the ftc dashboard if you want to offset your limelight targetting
+        public static double targetingOffsetFarDistance = 135.0;
+        public static double targetingOffsetFarScalar = 0.15;
     }
 
 
@@ -295,14 +322,14 @@ public class rConstants {
 
 
 
-        public static double homePosition = 0.415;
-        public static double transferPosition = 0.31;
+        public static double homePosition = 0.21;
+        public static double transferPosition = 0.315;
 
 
 
 
-        public static long servoRiseTime = 180;
-        public static long servoHomingTime = 40;
+        public static long servoRiseTime = 115;
+        public static long servoHomingTime = 80;
     }
 
 
@@ -321,6 +348,7 @@ public class rConstants {
         public static GamepadKeys.Button reverseIntake = GamepadKeys.Button.LEFT_STICK_BUTTON;
         public static GamepadKeys.Button shootArtefacts = GamepadKeys.Button.RIGHT_BUMPER;
         public static GamepadKeys.Button indexSpindexer = GamepadKeys.Button.RIGHT_BUMPER;
+        public static GamepadKeys.Button selectStartingPosition = GamepadKeys.Button.RIGHT_STICK_BUTTON;
 
 
 
@@ -377,35 +405,42 @@ public class rConstants {
     public static class AutonomousPositionConstants {
 
         // ── Blue Alliance Positions ──
-        public static Point blueCloseZoneStartingPosition = new Point(131.0, 109.0, 0.0);
-        public static Point scoreCloseZoneBlueSide = new Point(79.0, 82.0, 43.0);
-        public static Point scoreFarZoneBlueSide   = new Point(12.0, 82.0, 23.0);
+        public static Pose blueCloseZoneStartingPosition = new Pose(12.0, 35.0, Math.toRadians(-180));
+        public static Pose blueFarZoneStartingPosition = new Pose(134.0,57.0, Math.toRadians(180));
+        public static Pose scoreCloseZoneBlueSide = new Pose(68.0, 61.0, Math.toRadians(-135.5));
+        public static Pose scoreFarZoneBlueSide = new Pose(127.0, 62.0, Math.toRadians(-157.0));
 
-        public static Point gateCollectBlueSide = new Point(0, 0, 0);
+        public static Pose gateCollectBlueSide = new Pose(89.9, 21, Math.toRadians(-124.0));
 
-        public static Point collectThirdSet1BlueSide = new Point(30.0, 83.0, 90.0);
-        public static Point collectThirdSet2BlueSide = new Point(30.0, 114.0, 90.0);
+        public static Pose collectFirstSet1BlueSide = new Pose(63.5, 63.0, Math.toRadians(-90.0));
+        public static Pose collectFirstSet2BlueSide = new Pose(63.5, 33.0, Math.toRadians(-90));
 
-        public static Point collectSecondSet1BlueSide = new Point(53.0, 85.0, 90.0);
-        public static Point collectSecondSet2BlueSide = new Point(53.0, 114.0, 90.0);
+        public static Pose collectSecondSet1BlueSide = new Pose(89.1, 62.0, Math.toRadians(-90));
+        public static Pose collectSecondSet2BlueSide = new Pose(89.1, 33.15, Math.toRadians(-90));
 
-        public static Point collectFirstSet1BlueSide = new Point(78.0, 85.0, 90.0);
-        public static Point collectFirstSet2BlueSide = new Point(78.0, 113.0, 90.0);
+        public static Pose collectThirdSet1BlueSide = new Pose(109.0, 58.0, Math.toRadians(-90));
+        public static Pose collectThirdSet2BlueSide = new Pose(109.0, 28.1, Math.toRadians(-90));
+
+
+
+
+
 
         // ── Red Alliance Positions ──
-        public static Point redCloseZoneStartingPosition = new Point(9, 106, -180);
-        public static Point scoreCloseZoneRedSide = new Point(47.0, 85.0, 135.0);
-        public static Point scoreFarZoneRedSide   = new Point(126.0, 89.0, 161.0);
+        public static Pose redCloseZoneStartingPosition = new Pose(12.0, 107.0, Math.toRadians(180));
+        public static Pose redFarZoneStartingPosition = new Pose(135.0,88.0, Math.toRadians(180));
+        public static Pose scoreCloseZoneRedSide = new Pose(48.0, 90.0, Math.toRadians(136.0));
+        public static Pose scoreFarZoneRedSide   = new Pose(124.0, 85.0, Math.toRadians(159.15));
 
-        public static Point gateCollectRedSide = new Point(73, 129.25,  120.0);
+        public static Pose gateCollectRedSide = new Pose(75.5, 131.0,  Math.toRadians(125.75));
 
-        public static Point collectThirdSet1RedSide = new Point(44.0, 103.0, 90.0);
-        public static Point collectThirdSet2RedSide = new Point(44.0, 130.0, 90.0);
+        public static Pose collectThirdSet1RedSide = new Pose(48, 100.0, Math.toRadians(90.0));
+        public static Pose collectThirdSet2RedSide = new Pose(48, 129, Math.toRadians(90.0));
 
-        public static Point collectSecondSet1RedSide = new Point(69.15, 100.0, 90.0);
-        public static Point collectSecondSet2RedSide = new Point(69.15, 135.0, 90.0);
+        public static Pose collectSecondSet1RedSide = new Pose(70, 100.0, Math.toRadians(90.0));
+        public static Pose collectSecondSet2RedSide = new Pose(70, 137.15, Math.toRadians(90.0));
 
-        public static Point collectFirstSet1RedSide = new Point(92.0, 104.0, 90.0);
-        public static Point collectFirstSet2RedSide = new Point(92.0, 135.0, 90.0);
+        public static Pose collectFirstSet1RedSide = new Pose(94.15, 100.0, Math.toRadians(90.0));
+        public static Pose collectFirstSet2RedSide = new Pose(94.15, 135.15, Math.toRadians(90.0));
     }
 }

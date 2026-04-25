@@ -33,7 +33,6 @@ public class OdometryTuning extends OpMode {
 
         robot = new RobotHardwareMap();
         robot.init(hardwareMap);
-        robot.pinpointDriver.recalibrateIMU();
 
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(rConstants.FieldConstants.startingPose);

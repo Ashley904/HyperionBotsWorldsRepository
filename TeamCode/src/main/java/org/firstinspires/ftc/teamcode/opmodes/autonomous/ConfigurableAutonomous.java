@@ -22,7 +22,6 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.commands.InitializeTransferCMD;
 import org.firstinspires.ftc.teamcode.commands.ShootArtefactsCMD;
-import org.firstinspires.ftc.teamcode.customPathing.Point;
 import org.firstinspires.ftc.teamcode.opmodes.teleop.WorldsRebuildTeleOp;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.subsystems.IntakeSubsystem;
@@ -40,11 +39,20 @@ import java.util.List;
 @Config
 @Autonomous(name = "Worlds Configurable Autonomous", group = "Autonomous")
 public class ConfigurableAutonomous extends OpMode {
+    public static double closeZoneFlyWheelVelocity = 1130.0;
+    public static double closeZoneHoodPosition = 0.69;
+
+    public static double farZoneFlyWheelVelocity = 1460.0;
+    public static double farZoneHoodPosition = 0.52;
+
+
+
+
 
     private enum Phase { SelectingAlliance, SelectingStartingZone, ConstructingActions, Confirming, Ready }
     private enum ActionType { ShootCloseZone, ShootFarZone, CollectCloseSet, CollectMiddleSet, CollectFarSet, GateCollect }
 
-    public static double collectSlowSpeed = 0.6;
+    public static double collectSlowSpeed = 0.75;
 
 
     private RobotHardwareMap robot;
@@ -75,8 +83,13 @@ public class ConfigurableAutonomous extends OpMode {
     int currentSpindexerIndex = 0;
 
 
-    private static final List<CalibrationPoints> calibrationPoints = new ArrayList<>();
-    double dynamicTargetFlyWheelVelocity = 0.0, dynamicTargetHoodPosition = 0.0;
+    //----------Precomputed Shooter Lookup Table----------//
+    private static final double LOOKUP_TABLE_RESOLUTION = 0.01;
+    private static final double LOOKUP_TABLE_MAX_DISTANCE = 200.0;
+    private static final int LOOKUP_TABLE_SIZE = (int) (LOOKUP_TABLE_MAX_DISTANCE / LOOKUP_TABLE_RESOLUTION) + 1;
+    private final double[] precomputedFlyWheelVelocities = new double[LOOKUP_TABLE_SIZE];
+    private final double[] precomputedHoodPositions = new double[LOOKUP_TABLE_SIZE];
+    //----------end----------//
 
 
     // ═══════════════════════════════════════════
@@ -84,29 +97,36 @@ public class ConfigurableAutonomous extends OpMode {
     // ═══════════════════════════════════════════
 
     private class FollowPathCommand extends CommandBase {
-        private final Pose fromPose;
         private final Pose toPose;
         private final double maxSpeed;
 
-        public FollowPathCommand(Pose fromPose, Pose toPose) {
-            this.fromPose = fromPose;
+        public FollowPathCommand(Pose toPose) {
             this.toPose = toPose;
             this.maxSpeed = 1.0;
         }
 
-        public FollowPathCommand(Pose fromPose, Pose toPose, double maxSpeed) {
-            this.fromPose = fromPose;
+        public FollowPathCommand(Pose toPose, double maxSpeed) {
             this.toPose = toPose;
             this.maxSpeed = maxSpeed;
         }
 
         @Override
         public void initialize() {
+            Pose fromPose = follower.getPose();
+            double startHeading = fromPose.getHeading();
+            double endHeading = toPose.getHeading();
+
+            // Normalize so heading takes the shortest rotation path
+            double delta = endHeading - startHeading;
+            while (delta > Math.PI)  delta -= 2 * Math.PI;
+            while (delta < -Math.PI) delta += 2 * Math.PI;
+            double adjustedEndHeading = startHeading + delta;
+
             PathChain pathChain = follower.pathBuilder()
                     .addPath(new BezierLine(fromPose, toPose))
-                    .setLinearHeadingInterpolation(fromPose.getHeading(), toPose.getHeading())
+                    .setLinearHeadingInterpolation(startHeading, adjustedEndHeading)
                     .build();
-            follower.followPath(pathChain, maxSpeed, false);
+            follower.followPath(pathChain, maxSpeed, true);   // hold position = true
         }
 
         @Override public void execute() {}
@@ -117,13 +137,18 @@ public class ConfigurableAutonomous extends OpMode {
 
     // ═══════════════════════════════════════════
     //  OP MODE METHODS
-    // ═══════════════════════════════════════════
+    // ════════════════════════════════════════
+
+
+
+
+
+    private int loopCount = 0;
 
     @Override
     public void init() {
         robot = new RobotHardwareMap();
         robot.init(hardwareMap);
-        robot.pinpointDriver.recalibrateIMU();
 
         follower = Constants.createFollower(hardwareMap);
 
@@ -142,7 +167,6 @@ public class ConfigurableAutonomous extends OpMode {
         CommandScheduler.getInstance().reset();
         CommandScheduler.getInstance().schedule(new InitializeTransferCMD(robot));
         InitializeButtonReaders();
-        InitializeCalibrationPoints();
 
         telemetry.addData("Status", "Initialization Complete...");
         telemetry.update();
@@ -182,16 +206,18 @@ public class ConfigurableAutonomous extends OpMode {
         boolean isBlue = rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE;
         Pose startPose;
         if (isCloseZone) {
-            startPose = pointToPose(isBlue
+            startPose = isBlue
                     ? rConstants.AutonomousPositionConstants.blueCloseZoneStartingPosition
-                    : rConstants.AutonomousPositionConstants.redCloseZoneStartingPosition);
+                    : rConstants.AutonomousPositionConstants.redCloseZoneStartingPosition;
         } else {
-            startPose = pointToPose(isBlue
-                    ? rConstants.AutonomousPositionConstants.blueCloseZoneStartingPosition
-                    : rConstants.AutonomousPositionConstants.redCloseZoneStartingPosition);
+            startPose = isBlue
+                    ? rConstants.AutonomousPositionConstants.blueFarZoneStartingPosition
+                    : rConstants.AutonomousPositionConstants.redFarZoneStartingPosition;
         }
         follower.setStartingPose(startPose);
         trackingPose = startPose;
+
+        shooterSubsystem.setTargetVelocity(1300);
 
         spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.intakingPositions[0]);
         CommandScheduler.getInstance().schedule(BuildAutoSequence());
@@ -208,10 +234,6 @@ public class ConfigurableAutonomous extends OpMode {
         spindexerSubsystem.periodic();
 
         // Calculate shooter parameters dynamically based on distance to goal
-        CalculateShooterParameters();
-
-        shooterSubsystem.setTargetVelocity(dynamicTargetFlyWheelVelocity);
-        shooterSubsystem.setHoodPosition(dynamicTargetHoodPosition);
         turretSubsystem.setTurretAngle(0);
 
         // Auto-indexing runs every loop while intake is on
@@ -222,22 +244,10 @@ public class ConfigurableAutonomous extends OpMode {
         telemetry.addData("Y", "%.1f", follower.getPose().getY());
         telemetry.addData("Heading", "%.1f", Math.toDegrees(follower.getPose().getHeading()));
         telemetry.addData("Distance To Goal", "%.1f", getDistanceToGoal());
-        telemetry.addData("Target Velocity", "%.0f", dynamicTargetFlyWheelVelocity);
         telemetry.addData("Busy", follower.isBusy());
         telemetry.addData("Intake State", intakeSubsystem.getState());
         telemetry.addData("Spindexer State", spindexerSubsystem.getSpindexerState());
         telemetry.update();
-    }
-
-
-    @Override
-    public void stop() {
-        rConstants.FieldConstants.startingPose = new Pose(
-                follower.getPose().getX(),
-                follower.getPose().getY(),
-                follower.getPose().getHeading()
-        );
-        CommandScheduler.getInstance().reset();
     }
 
 
@@ -247,10 +257,7 @@ public class ConfigurableAutonomous extends OpMode {
                 || !spindexerSubsystem.spindexerPositionReached()) return;
 
         double leftDistance = robot.leftDistanceSensor.getDistance(DistanceUnit.CM);
-        double rightDistance = robot.rightDistanceSensor.getDistance(DistanceUnit.CM);
-
-        boolean ballPresent = leftDistance <= rConstants.SensorConstants.distanceSensorOccupiedThreshold
-                || rightDistance <= rConstants.SensorConstants.distanceSensorOccupiedThreshold;
+        boolean ballPresent = leftDistance <= rConstants.SensorConstants.distanceSensorOccupiedThreshold;
 
         if(ballPresent){
             currentSpindexerIndex = (currentSpindexerIndex + 1) % rConstants.SpindexerConstants.intakingPositions.length;
@@ -343,86 +350,110 @@ public class ConfigurableAutonomous extends OpMode {
         for (ActionType action : actionQueue) {
             switch (action) {
                 case ShootCloseZone: {
-                    Pose target = pointToPose(isBlue
+                    Pose target = isBlue
                             ? rConstants.AutonomousPositionConstants.scoreCloseZoneBlueSide
-                            : rConstants.AutonomousPositionConstants.scoreCloseZoneRedSide);
-                    commands.add(new FollowPathCommand(trackingPose, target));
+                            : rConstants.AutonomousPositionConstants.scoreCloseZoneRedSide;
+                    commands.add(new FollowPathCommand(target));
+                    commands.add(new InstantCommand(() -> {
+                        shooterSubsystem.setTargetVelocity(closeZoneFlyWheelVelocity);
+                        shooterSubsystem.setHoodPosition(closeZoneHoodPosition);
+                    }));
+                    commands.add(new WaitUntilCommand(() ->
+                            rConstants.Enums.currentShooterState == rConstants.Enums.ShooterState.TargetReached));
                     commands.add(new ShootArtefactsCMD(spindexerSubsystem, intakeSubsystem, robot));
                     commands.add(new WaitUntilCommand(() ->
                             spindexerSubsystem.getSpindexerState() != SpindexerSubsystem.SpindexerState.Shooting));
-                    trackingPose = target;
                     break;
                 }
 
                 case ShootFarZone: {
-                    Pose target = pointToPose(isBlue
+                    Pose target = isBlue
                             ? rConstants.AutonomousPositionConstants.scoreFarZoneBlueSide
-                            : rConstants.AutonomousPositionConstants.scoreFarZoneRedSide);
-                    commands.add(new FollowPathCommand(trackingPose, target));
+                            : rConstants.AutonomousPositionConstants.scoreFarZoneRedSide;
+                    commands.add(new FollowPathCommand(target));
+                    commands.add(new InstantCommand(() -> {
+                        shooterSubsystem.setTargetVelocity(farZoneFlyWheelVelocity);
+                        shooterSubsystem.setHoodPosition(farZoneHoodPosition);
+                    }));
+                    commands.add(new WaitUntilCommand(() ->
+                            rConstants.Enums.currentShooterState == rConstants.Enums.ShooterState.TargetReached));
                     commands.add(new ShootArtefactsCMD(spindexerSubsystem, intakeSubsystem, robot));
                     commands.add(new WaitUntilCommand(() ->
                             spindexerSubsystem.getSpindexerState() != SpindexerSubsystem.SpindexerState.Shooting));
-                    trackingPose = target;
                     break;
                 }
 
                 case GateCollect: {
-                    Pose target = pointToPose(isBlue
+                    Pose target = isBlue
                             ? rConstants.AutonomousPositionConstants.gateCollectBlueSide
-                            : rConstants.AutonomousPositionConstants.gateCollectRedSide);
-                    commands.add(new FollowPathCommand(trackingPose, target));
+                            : rConstants.AutonomousPositionConstants.gateCollectRedSide;
+                    commands.add(new FollowPathCommand(target));
                     commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking)));
                     commands.add(new WaitCommand(1300));
-                    commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled)));
-                    trackingPose = target;
                     break;
                 }
 
                 case CollectCloseSet: {
-                    Pose pose1 = pointToPose(isBlue
+                    Pose pose1 = isBlue
                             ? rConstants.AutonomousPositionConstants.collectThirdSet1BlueSide
-                            : rConstants.AutonomousPositionConstants.collectThirdSet1RedSide);
-                    Pose pose2 = pointToPose(isBlue
+                            : rConstants.AutonomousPositionConstants.collectThirdSet1RedSide;
+                    Pose pose2 = isBlue
                             ? rConstants.AutonomousPositionConstants.collectThirdSet2BlueSide
-                            : rConstants.AutonomousPositionConstants.collectThirdSet2RedSide);
-                    commands.add(new FollowPathCommand(trackingPose, pose1));
+                            : rConstants.AutonomousPositionConstants.collectThirdSet2RedSide;
+                    commands.add(new FollowPathCommand(pose1));
                     commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking)));
-                    commands.add(new FollowPathCommand(pose1, pose2, collectSlowSpeed));
-                    commands.add(new WaitCommand(1000));
-                    commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled)));
-                    trackingPose = pose2;
+                    commands.add(new FollowPathCommand(pose2, collectSlowSpeed));
                     break;
                 }
 
                 case CollectMiddleSet: {
-                    Pose pose1 = pointToPose(isBlue
+                    Pose pose1 = isBlue
                             ? rConstants.AutonomousPositionConstants.collectSecondSet1BlueSide
-                            : rConstants.AutonomousPositionConstants.collectSecondSet1RedSide);
-                    Pose pose2 = pointToPose(isBlue
+                            : rConstants.AutonomousPositionConstants.collectSecondSet1RedSide;
+                    Pose pose2 = isBlue
                             ? rConstants.AutonomousPositionConstants.collectSecondSet2BlueSide
-                            : rConstants.AutonomousPositionConstants.collectSecondSet2RedSide);
-                    commands.add(new FollowPathCommand(trackingPose, pose1));
+                            : rConstants.AutonomousPositionConstants.collectSecondSet2RedSide;
+
+                    commands.add(new FollowPathCommand(pose1));
                     commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking)));
-                    commands.add(new FollowPathCommand(pose1, pose2, collectSlowSpeed));
-                    commands.add(new WaitCommand(1000));
-                    commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled)));
-                    trackingPose = pose2;
+                    commands.add(new FollowPathCommand(pose2, collectSlowSpeed));
+
+                    commands.add(new CommandBase() {
+                        private Pose dodgePose;
+
+                        @Override
+                        public void initialize() {
+                            Pose current = follower.getPose();
+                            dodgePose = new Pose(
+                                    current.getX() + 2.5,
+                                    current.getY() - 5,
+                                    current.getHeading()
+                            );
+                            PathChain pathChain = follower.pathBuilder()
+                                    .addPath(new BezierLine(current, dodgePose))
+                                    .setLinearHeadingInterpolation(current.getHeading(), dodgePose.getHeading())
+                                    .build();
+                            follower.followPath(pathChain, 1.0, true);
+                        }
+
+                        @Override public void execute() {}
+                        @Override public boolean isFinished() { return !follower.isBusy(); }
+                        @Override public void end(boolean interrupted) {}
+                    });
+
                     break;
                 }
 
                 case CollectFarSet: {
-                    Pose pose1 = pointToPose(isBlue
+                    Pose pose1 = isBlue
                             ? rConstants.AutonomousPositionConstants.collectFirstSet1BlueSide
-                            : rConstants.AutonomousPositionConstants.collectFirstSet1RedSide);
-                    Pose pose2 = pointToPose(isBlue
+                            : rConstants.AutonomousPositionConstants.collectFirstSet1RedSide;
+                    Pose pose2 = isBlue
                             ? rConstants.AutonomousPositionConstants.collectFirstSet2BlueSide
-                            : rConstants.AutonomousPositionConstants.collectFirstSet2RedSide);
-                    commands.add(new FollowPathCommand(trackingPose, pose1));
+                            : rConstants.AutonomousPositionConstants.collectFirstSet2RedSide;
+                    commands.add(new FollowPathCommand(pose1));
                     commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking)));
-                    commands.add(new FollowPathCommand(pose1, pose2, collectSlowSpeed));
-                    commands.add(new WaitCommand(1000));
-                    commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Disabled)));
-                    trackingPose = pose2;
+                    commands.add(new FollowPathCommand(pose2, collectSlowSpeed ));
                     break;
                 }
             }
@@ -432,97 +463,14 @@ public class ConfigurableAutonomous extends OpMode {
     }
 
 
-    // ═══════════════════════════════════════════
-    //  SHOOTER CALIBRATION
-    // ═══════════════════════════════════════════
 
-    private static class CalibrationPoints {
-        public double distanceToGoal;
-        public double flyWheelVelocity;
-        public double hoodPosition;
 
-        public CalibrationPoints(double distanceToGoal, double flyWheelVelocity, double hoodPosition) {
-            this.distanceToGoal   = distanceToGoal;
-            this.flyWheelVelocity = flyWheelVelocity;
-            this.hoodPosition     = hoodPosition;
-        }
-    }
 
-    private void InitializeCalibrationPoints() {
-        calibrationPoints.clear();
-        calibrationPoints.add(new CalibrationPoints(36.0,  1110.0,  0.88));
-        calibrationPoints.add(new CalibrationPoints(61.0,  1230.0,  0.88));
-        calibrationPoints.add(new CalibrationPoints(88.0,  1350.0,  0.71));
-        calibrationPoints.add(new CalibrationPoints(132.0,  1670,  0.75));
-        calibrationPoints.add(new CalibrationPoints(150.0,  1750,  0.7));
-        calibrationPoints.sort(Comparator.comparingDouble(a -> a.distanceToGoal));
-    }
-
-    private void CalculateShooterParameters() {
-        double distance = getDistanceToGoal();
-
-        double velX = follower.getVelocity().getYComponent();
-        double velY = follower.getVelocity().getXComponent();
-
-        double dx = getGoalX() - getXPose();
-        double dy = getGoalY() - getYPose();
-
-        double ux = distance == 0 ? 0 : dx / distance;
-        double uy = distance == 0 ? 0 : dy / distance;
-
-        double approachVelocity = velX * ux + velY * uy;
-        double flightTime = 0;
-        if (dynamicTargetFlyWheelVelocity > 0) {
-            flightTime = distance / (dynamicTargetFlyWheelVelocity * rConstants.ShooterConstants.flywheelToBallSpeedRatio);
-        }
-
-        double compensatedDistance = distance - (approachVelocity * flightTime);
-        compensatedDistance = Math.max(0, compensatedDistance);
-
-        if (calibrationPoints.isEmpty()) {
-            dynamicTargetFlyWheelVelocity = 0.0;
-            dynamicTargetHoodPosition     = 0.0;
-            return;
-        }
-
-        if (compensatedDistance <= calibrationPoints.get(0).distanceToGoal) {
-            dynamicTargetFlyWheelVelocity = calibrationPoints.get(0).flyWheelVelocity;
-            dynamicTargetHoodPosition     = calibrationPoints.get(0).hoodPosition;
-            return;
-        }
-
-        if (compensatedDistance >= calibrationPoints.get(calibrationPoints.size() - 1).distanceToGoal) {
-            CalibrationPoints last = calibrationPoints.get(calibrationPoints.size() - 1);
-            dynamicTargetFlyWheelVelocity = last.flyWheelVelocity;
-            dynamicTargetHoodPosition     = last.hoodPosition;
-            return;
-        }
-
-        for (int i = 0; i < calibrationPoints.size() - 1; i++) {
-            CalibrationPoints p1 = calibrationPoints.get(i);
-            CalibrationPoints p2 = calibrationPoints.get(i + 1);
-
-            if (compensatedDistance >= p1.distanceToGoal && compensatedDistance <= p2.distanceToGoal) {
-                double t = (compensatedDistance - p1.distanceToGoal) / (p2.distanceToGoal - p1.distanceToGoal);
-
-                dynamicTargetFlyWheelVelocity = p1.flyWheelVelocity + t * (p2.flyWheelVelocity - p1.flyWheelVelocity);
-                dynamicTargetHoodPosition = p1.hoodPosition + t * (p2.hoodPosition - p1.hoodPosition);
-
-                dynamicTargetFlyWheelVelocity = Math.max(0, Math.min(rConstants.ShooterConstants.maximumFlyWheelVelocity, dynamicTargetFlyWheelVelocity));
-                dynamicTargetHoodPosition = Math.max(rConstants.ShooterConstants.minimumHoodPosition, Math.min(rConstants.ShooterConstants.maximumHoodPosition, dynamicTargetHoodPosition));
-                return;
-            }
-        }
-    }
 
 
     // ═══════════════════════════════════════════
     //  HELPERS
     // ═══════════════════════════════════════════
-
-    private Pose pointToPose(Point point) {
-        return new Pose(point.getX(), point.getY(), Math.toRadians(point.getHeading()));
-    }
 
     private double getHeading() { return follower.getPose().getHeading(); }
     private double getXPose() { return follower.getPose().getX(); }
@@ -538,9 +486,7 @@ public class ConfigurableAutonomous extends OpMode {
     private double getGoalY() { return getActiveGoalPose().getY(); }
 
     private double getDistanceToGoal() {
-        double dx = getGoalX() - getXPose();
-        double dy = getGoalY() - getYPose();
-        return Math.sqrt(dx * dx + dy * dy);
+        return follower.getPose().distanceFrom(getActiveGoalPose());
     }
 
 

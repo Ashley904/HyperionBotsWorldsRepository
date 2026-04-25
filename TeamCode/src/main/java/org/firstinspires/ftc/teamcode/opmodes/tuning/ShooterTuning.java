@@ -58,7 +58,6 @@ public class ShooterTuning extends OpMode {
 
         robot = new RobotHardwareMap();
         robot.init(hardwareMap);
-        robot.pinpointDriver.recalibrateIMU();
 
 
         follower = Constants.createFollower(hardwareMap);

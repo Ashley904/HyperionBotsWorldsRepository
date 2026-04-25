@@ -19,30 +19,30 @@ import org.firstinspires.ftc.teamcode.util.rConstants;
 @Config
 public class Constants {
     public static FollowerConstants followerConstants = new FollowerConstants()
-            .mass(14)
-            .forwardZeroPowerAcceleration(-41.7499366218547714)
-            .lateralZeroPowerAcceleration(-80.46339846975076)
+            .mass(15.5)
+            .forwardZeroPowerAcceleration(-47.895953908499635)
+            .lateralZeroPowerAcceleration(-74.7123052346908)
             .translationalPIDFCoefficients(new PIDFCoefficients(
-                    0.315,
+                    0.23,
                     0.0,
-                    0.025,
+                    0.02,
                     0.02
             ))
             .useSecondaryTranslationalPIDF(false)
             .translationalPIDFSwitch(4)
             .headingPIDFCoefficients(new PIDFCoefficients(
-                    1.6,
+                    1.4,
                     0.0,
-                    0.06,
-                    0.018
+                    0.03,
+                    0.03
             ))
             .useSecondaryHeadingPIDF(false)
             .drivePIDFCoefficients(new FilteredPIDFCoefficients(
-                    0.018,
+                    0.0065,
                     0.0,
-                    0.0025,
+                    0.0001,
                     0.6,
-                    0.0825
+                    0.0775
             ))
             .useSecondaryDrivePIDF(false)
             .drivePIDFSwitch(15)
@@ -57,8 +57,8 @@ public class Constants {
             .leftRearMotorDirection(DcMotorSimple.Direction.REVERSE)
             .rightFrontMotorDirection(DcMotorSimple.Direction.FORWARD)
             .rightRearMotorDirection(DcMotorSimple.Direction.FORWARD)
-            .xVelocity(69.86779881274606)
-            .yVelocity(52.97754579078494);
+            .xVelocity(70.529094554585998)
+            .yVelocity(52.173685389240894);
 
     public static PinpointConstants localizerConstants = new PinpointConstants()
             .forwardPodY(-7.5)

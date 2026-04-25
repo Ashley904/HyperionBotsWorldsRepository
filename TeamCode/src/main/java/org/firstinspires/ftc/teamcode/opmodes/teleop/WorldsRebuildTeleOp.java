@@ -6,8 +6,11 @@ import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.arcrobotics.ftclib.command.CommandScheduler;
 import com.arcrobotics.ftclib.gamepad.ButtonReader;
 import com.arcrobotics.ftclib.gamepad.GamepadEx;
+import com.arcrobotics.ftclib.gamepad.GamepadKeys;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.geometry.Pose;
+import com.qualcomm.hardware.limelightvision.LLResult;
+import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.hardware.lynx.LynxModule;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -17,12 +20,12 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.commands.InitializeTransferCMD;
 import org.firstinspires.ftc.teamcode.commands.ShootArtefactsCMD;
-import org.firstinspires.ftc.teamcode.controllers.PDController;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.subsystems.IntakeSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.ShooterSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.SpindexerSensorsSubsystem;
 import org.firstinspires.ftc.teamcode.subsystems.SpindexerSubsystem;
+import org.firstinspires.ftc.teamcode.subsystems.TurretSubsystem;
 import org.firstinspires.ftc.teamcode.util.RobotHardwareMap;
 
 import org.firstinspires.ftc.teamcode.util.rConstants;
@@ -35,7 +38,6 @@ import java.util.Comparator;
 @TeleOp(name="Worlds Rebuild TeleOp", group="TeleOp")
 public class WorldsRebuildTeleOp extends OpMode {
     FtcDashboard ftcDashboard;
-    PDController headingPDController;
     Follower follower;
 
 
@@ -43,6 +45,7 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
     IntakeSubsystem intakeSubsystem;
+    TurretSubsystem turretSubsystem;
     ShooterSubsystem shooterSubsystem;
     SpindexerSubsystem spindexerSubsystem;
     SpindexerSensorsSubsystem spindexerSensorsSubsystem;
@@ -52,8 +55,6 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
     ShootArtefactsCMD shootArtefactsCMD;
-    private boolean autoAimActive = false;
-    private static final double HEADING_TOLERANCE_RAD = Math.toRadians(5.0);
 
 
 
@@ -71,13 +72,8 @@ public class WorldsRebuildTeleOp extends OpMode {
     private ButtonReader indexSpindexerButtonReader;
 
     private ButtonReader selectAllianceButtonReader;
-
-
-
-
-
-    private double targetHeading=0.0;
-    private boolean headingCorrectionEnabled=true;
+    private ButtonReader autoLockHeadingButtonReader;
+    private ButtonReader resetPoseButtonReader;
 
 
 
@@ -116,12 +112,25 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
 
+    //----------Limelight Auto-Lock Heading----------//
+    private Limelight3A limelight;
+    private boolean autoLockHeadingEnabled = false;
+
+    private double limelightLastError = 0;
+    private boolean limelightHasLastError = false;
+    private double limelightLastTime = 0;
+    private final ElapsedTime limelightRuntime = new ElapsedTime();
+    //----------end----------//
+
+
+
+
+
 
     @Override
     public void init(){
         robot = new RobotHardwareMap();
         robot.init(hardwareMap);
-        robot.pinpointDriver.recalibrateIMU();
 
 
 
@@ -150,11 +159,20 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
 
+        turretSubsystem = new TurretSubsystem(robot);
         intakeSubsystem = new IntakeSubsystem(robot);
         shooterSubsystem = new ShooterSubsystem(robot);
         spindexerSubsystem = new SpindexerSubsystem(robot);
         spindexerSensorsSubsystem = new SpindexerSensorsSubsystem(robot);
-        headingPDController = new PDController(rConstants.DriveTrainConstants.headingKp, rConstants.DriveTrainConstants.headingKd);
+
+
+
+
+
+        limelight = hardwareMap.get(Limelight3A.class, "limelight");
+        limelight.pipelineSwitch(0);
+        limelight.setPollRateHz(100);
+        limelight.start();
 
 
 
@@ -230,6 +248,9 @@ public class WorldsRebuildTeleOp extends OpMode {
         robot.spindexerEncoder.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
 
         spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.intakingPositions[1]);
+
+        limelight.start();
+        limelightRuntime.reset();
     }
 
 
@@ -245,7 +266,7 @@ public class WorldsRebuildTeleOp extends OpMode {
         RobotDrive();
         CalculateShooterParameters();
 
-        if(loopCount++ % 3 == 0) TelemetryUpdating();
+        if(loopCount++ % 5 == 0) TelemetryUpdating();
     }
 
 
@@ -263,43 +284,68 @@ public class WorldsRebuildTeleOp extends OpMode {
         double rx = gamepad1.right_stick_x * adjustedDrivingSpeed;
 
 
+        //----------Field-Centric Rotation----------//
         double heading = getHeading();
         double headingOffset = rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE
-                ? rConstants.AllianceHeadingOffsets.blueAllianceHeadingOffset
-                : rConstants.AllianceHeadingOffsets.redAllianceHeadingOffset;
+                ? Math.toRadians(rConstants.AllianceHeadingOffsets.blueAllianceHeadingOffset)
+                : Math.toRadians(rConstants.AllianceHeadingOffsets.redAllianceHeadingOffset);
 
         double rotationAngle = -heading + headingOffset;
         double rotatedX = x * Math.cos(rotationAngle) - y * Math.sin(rotationAngle);
         double rotatedY = x * Math.sin(rotationAngle) + y * Math.cos(rotationAngle);
+        //----------end----------//
 
 
 
 
-        //----------Heading Correction----------//
-        headingPDController.setGains(rConstants.DriveTrainConstants.headingKp, rConstants.DriveTrainConstants.headingKd);
-        if(autoAimActive && (shootArtefactsCMD == null || !CommandScheduler.getInstance().isScheduled(shootArtefactsCMD))) {
-            autoAimActive = false;
-            targetHeading = heading;
-        }
+        //----------Limelight Auto-Lock Heading----------//
+        if(autoLockHeadingEnabled) {
+            double currentTime = limelightRuntime.seconds();
+            double deltaTime = currentTime - limelightLastTime;
+            limelightLastTime = currentTime;
 
-        if(autoAimActive) {
-            targetHeading = getAngleToGoal();
-            headingCorrectionEnabled = true;
-        } else if(Math.abs(rConstants.GamePadControls.gamepad1EX.getRightX()) > 0.05) {
-            headingCorrectionEnabled = false;
-            targetHeading = heading;
+            LLResult llResult = limelight.getLatestResult();
+
+            if(llResult == null || !llResult.isValid()) {
+                limelightHasLastError = false;
+            } else {
+                // Scale the targeting offset down as distance increases.
+                // Full offset at close range, scaled-down offset at/beyond far distance.
+                double distance = getDistanceToGoal();
+                double t = Math.max(0, Math.min(1, distance / rConstants.LimelightAutoAimConstants.targetingOffsetFarDistance));
+                double offsetScalar = 1.0 - t * (1.0 - rConstants.LimelightAutoAimConstants.targetingOffsetFarScalar);
+                double scaledOffset = rConstants.LimelightAutoAimConstants.targetingOffset * offsetScalar;
+
+                double error = llResult.getTx() - scaledOffset;
+
+                double limelightTurnPower;
+                if(Math.abs(error) > rConstants.LimelightAutoAimConstants.limelightHeadingTolerance) {
+                    double pTerm = rConstants.LimelightAutoAimConstants.limelightKp * error;
+
+                    double dTerm = 0;
+                    if(limelightHasLastError && deltaTime > 1e-4) {
+                        dTerm = rConstants.LimelightAutoAimConstants.limelightKd * ((error - limelightLastError) / deltaTime);
+                    }
+
+                    limelightTurnPower = pTerm + dTerm;
+                } else {
+                    limelightTurnPower = 0;
+                }
+
+                limelightTurnPower *= rConstants.LimelightAutoAimConstants.limelightTurnDirection;
+                limelightTurnPower = Math.max(-rConstants.LimelightAutoAimConstants.maxCorrectionPower,
+                        Math.min(rConstants.LimelightAutoAimConstants.maxCorrectionPower, limelightTurnPower));
+
+                rx = limelightTurnPower;
+
+                limelightLastError = error;
+                limelightHasLastError = true;
+            }
         } else {
-            headingCorrectionEnabled = true;
+            limelightHasLastError = false;
+            limelightLastTime = limelightRuntime.seconds();
         }
-
-        if(headingCorrectionEnabled && rConstants.DriveTrainConstants.headingKp > 0) {
-            double headingError = targetHeading - heading;
-            while(headingError > Math.PI) headingError -= 2 * Math.PI;
-            while(headingError < -Math.PI) headingError += 2 * Math.PI;
-
-            rx = headingPDController.calculate(0, headingError, -0.815, 0.815);
-        }
-        //----------end-----------//
+        //----------end----------//
 
 
 
@@ -335,7 +381,7 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
     private void GamepadControlsManaging(){
-        //----------Intaking Managing----------//
+        //----------Intaking Managing----v------//
         if(spindexerSubsystem.getSpindexerState() != SpindexerSubsystem.SpindexerState.Shooting){
             enableIntakeButtonReader.readValue();
             reverseIntakeButtonReader.readValue();
@@ -390,7 +436,32 @@ public class WorldsRebuildTeleOp extends OpMode {
         if(shootArtefactsButtonReader.wasJustPressed()) {
             shootArtefactsCMD = new ShootArtefactsCMD(spindexerSubsystem, intakeSubsystem, robot);
             CommandScheduler.getInstance().schedule(shootArtefactsCMD);
-            autoAimActive = true;
+        }
+        //----------end----------//
+
+
+
+
+
+        //----------Toggle Auto-Lock Heading----------//
+        autoLockHeadingButtonReader.readValue();
+        if(autoLockHeadingButtonReader.wasJustPressed()) {
+            autoLockHeadingEnabled = !autoLockHeadingEnabled;
+            limelightHasLastError = false;
+            limelightLastTime = limelightRuntime.seconds();
+            RumbleGamePad(100);
+        }
+        //----------end----------//
+
+
+
+
+
+        //----------Reset Pose----------//
+        resetPoseButtonReader.readValue();
+        if(resetPoseButtonReader.wasJustPressed()) {
+            follower.setPose(rConstants.FieldConstants.resetPose);
+            RumbleGamePad(250);
         }
         //----------end----------//
     }
@@ -404,6 +475,8 @@ public class WorldsRebuildTeleOp extends OpMode {
         shootArtefactsButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.shootArtefacts);
         indexSpindexerButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.indexSpindexer);
         selectAllianceButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, rConstants.GamePadControls.selectAlliance);
+        autoLockHeadingButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, GamepadKeys.Button.LEFT_BUMPER);
+        resetPoseButtonReader = new ButtonReader(rConstants.GamePadControls.gamepad1EX, GamepadKeys.Button.START);
     }
 
 
@@ -412,11 +485,14 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     private void BackgroundOperations(){
         intakeSubsystem.periodic();
+        turretSubsystem.periodic();
         shooterSubsystem.periodic();
         spindexerSubsystem.periodic();
 
         shooterSubsystem.setTargetVelocity(dynamicTargetFlyWheelVelocity);
         shooterSubsystem.setHoodPosition(dynamicTargetHoodPosition);
+
+        turretSubsystem.setTurretAngle(0);
 
         SpindexerManaging();
         CommandScheduler.getInstance().run();
@@ -443,27 +519,11 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
 
-    private double getAngleToGoal() {
-        double deltaX = getGoalX() - getXPose();
-        double deltaY = getGoalY() - getYPose();
-        return Math.atan2(deltaY, deltaX);
-    }
-    public boolean isAimedAtGoal() {
-        double error = getAngleToGoal() - getHeading();
-        while(error > Math.PI) error -= 2 * Math.PI;
-        while(error < -Math.PI) error += 2 * Math.PI;
-        return Math.abs(error) <= rConstants.DriveTrainConstants.autoLockHeadingTolerance;
-    }
     private Pose getActiveGoalPose() {
         return rConstants.Enums.selectedAlliance == rConstants.Enums.Alliance.BLUE
                 ? rConstants.FieldConstants.blueGoalPose
                 : rConstants.FieldConstants.redGoalPose;
     }
-
-
-
-
-
     private static class CalibrationPoints {
         public double distanceToGoal;
         public double flyWheelVelocity;
@@ -479,10 +539,11 @@ public class WorldsRebuildTeleOp extends OpMode {
     private void InitializeCalibrationPoints() {
         calibrationPoints.clear();
 
-        calibrationPoints.add(new CalibrationPoints(45.2,  1160,  0.6));
-        calibrationPoints.add(new CalibrationPoints(80.1,  1185,  0.6));
-        calibrationPoints.add(new CalibrationPoints(110.8,  1465,  0.5));
-        calibrationPoints.add(new CalibrationPoints(113.0,  1645,  0.41));
+        calibrationPoints.add(new CalibrationPoints(44.0,  1065.0,  0.69));
+        calibrationPoints.add(new CalibrationPoints(80.0,  1180,  0.575));
+        calibrationPoints.add(new CalibrationPoints(105.0,  1320,  0.56));
+        calibrationPoints.add(new CalibrationPoints(121.0,  1405,  0.54));
+        calibrationPoints.add(new CalibrationPoints(141.0,  1485.0,  0.52));
         calibrationPoints.sort(Comparator.comparingDouble(a -> a.distanceToGoal));
     }
     private void PrecomputeShooterLookupTable() {
@@ -536,27 +597,8 @@ public class WorldsRebuildTeleOp extends OpMode {
     private void CalculateShooterParameters() {
         double distance = getDistanceToGoal();
 
-        // Live velocity compensation (depends on robot motion, can't be precomputed)
-        double velX = follower.getVelocity().getYComponent();
-        double velY = follower.getVelocity().getXComponent();
-
-        double dx = getGoalX() - getXPose();
-        double dy = getGoalY() - getYPose();
-
-        double ux = dx / distance;
-        double uy = dy / distance;
-
-        double approachVelocity = velX * ux + velY * uy;
-        double flightTime = 0;
-        if (dynamicTargetFlyWheelVelocity > 0) {
-            flightTime = distance / (dynamicTargetFlyWheelVelocity * rConstants.ShooterConstants.flywheelToBallSpeedRatio);
-        }
-
-        double compensatedDistance = distance - (approachVelocity * flightTime);
-        compensatedDistance = Math.max(0, compensatedDistance);
-
         // Fast O(1) lookup instead of looping through calibration points and interpolating
-        int index = (int) (compensatedDistance / LOOKUP_TABLE_RESOLUTION);
+        int index = (int) (distance / LOOKUP_TABLE_RESOLUTION);
         if (index < 0) index = 0;
         if (index >= LOOKUP_TABLE_SIZE) index = LOOKUP_TABLE_SIZE - 1;
 
@@ -577,7 +619,6 @@ public class WorldsRebuildTeleOp extends OpMode {
         telemetry.addData("Y Pose: ",  "%.1f" , getYPose());
         telemetry.addData("Distance To Goal: ", "%.1f", getDistanceToGoal());
         telemetry.addData("Current Heading: ", "%.1f" , Math.toDegrees(getHeading()));
-        telemetry.addData("Target Heading To Goal: ", "%.1f", Math.toDegrees(getAngleToGoal()));
 
         telemetry.addData("Intake State: ", intakeSubsystem.getState());
 
@@ -589,9 +630,8 @@ public class WorldsRebuildTeleOp extends OpMode {
         telemetry.addData("Current FlyWheel Velocity: ", "%.0f", shooterSubsystem.getCurrentFlyWheelVelocity());
         telemetry.addData("Target FlyWheel Wheel Velocity: ", "%.0f", dynamicTargetFlyWheelVelocity);
 
-        telemetry.addData("Auto-Aim Active: ", autoAimActive);
-        telemetry.addData("Aimed At Goal?: ", isAimedAtGoal());
-
+        telemetry.addData("Auto-Lock Heading: ", autoLockHeadingEnabled);
+        telemetry.addData("Tag Visible: ", limelight.getLatestResult() != null && limelight.getLatestResult().isValid());
         telemetry.addData("Loop Time: ", elapsedTime.milliseconds());
         elapsedTime.reset();
 
@@ -620,15 +660,5 @@ public class WorldsRebuildTeleOp extends OpMode {
 
     private double getDistanceToGoal() {
         return follower.getPose().distanceFrom(getActiveGoalPose());
-    }
-
-
-
-
-    private double getGoalX() {
-        return getActiveGoalPose().getX();
-    }
-    private double getGoalY() {
-        return getActiveGoalPose().getY();
     }
 }

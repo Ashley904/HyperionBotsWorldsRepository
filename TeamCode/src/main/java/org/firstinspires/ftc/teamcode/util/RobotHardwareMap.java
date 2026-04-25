@@ -39,12 +39,6 @@ public class RobotHardwareMap {
 
 
 
-    public GoBildaPinpointDriver pinpointDriver;
-
-
-
-
-
     public Servo leftTransferServo;
     public Servo rightTransferServo;
 
@@ -76,7 +70,6 @@ public class RobotHardwareMap {
         initializeShooter(hardwareMap);
         initializeTransfer(hardwareMap);
         initializeSpindexer(hardwareMap);
-        initializePinpointDriver(hardwareMap);
         initializeDistanceSensors(hardwareMap);
 
         // Share the back left motor reference for spindexer encoder reading
@@ -132,7 +125,6 @@ public class RobotHardwareMap {
 
 
     private void initializeSpindexer(HardwareMap hardwareMap){
-        // No separate encoder init here — shared reference is set in init()
         leftSpindexerServo = hardwareMap.get(Servo.class, rConstants.SpindexerConstants.leftSpindexerServoName);
         rightSpindexerServo = hardwareMap.get(Servo.class, rConstants.SpindexerConstants.rightSpindexerServoName);
     }
@@ -158,18 +150,6 @@ public class RobotHardwareMap {
 
         rightTransferServo = hardwareMap.get(Servo.class, rConstants.TransferConstants.rightTransferServoName);
         rightTransferServo.setDirection(Servo.Direction.REVERSE);
-    }
-
-
-
-
-
-    public void initializePinpointDriver(HardwareMap hardwareMap){
-        pinpointDriver = hardwareMap.get(GoBildaPinpointDriver.class, rConstants.PinpointConstants.pinpointDriveName);
-        pinpointDriver.setEncoderDirections(rConstants.PinpointConstants.forwardPodInverted ? GoBildaPinpointDriver.EncoderDirection.REVERSED : GoBildaPinpointDriver.EncoderDirection.FORWARD,
-                rConstants.PinpointConstants.strafePodInverted ? GoBildaPinpointDriver.EncoderDirection.REVERSED : GoBildaPinpointDriver.EncoderDirection.FORWARD);
-
-        pinpointDriver.setOffsets(rConstants.PinpointConstants.strafePodOffset, rConstants.PinpointConstants.forwardPodOffset, DistanceUnit.INCH);
     }
 
 
