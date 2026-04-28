@@ -50,7 +50,7 @@ public class ConfigurableAutonomous extends OpMode {
 
 
     private enum Phase { SelectingAlliance, SelectingStartingZone, ConstructingActions, Confirming, Ready }
-    private enum ActionType { ShootCloseZone, ShootFarZone, CollectCloseSet, CollectMiddleSet, CollectFarSet, GateCollect }
+    private enum ActionType { ShootCloseZone, ShootFarZone, CollectCloseSet, CollectMiddleSet, CollectFarSet, GateCollect, OpenGate, HumanPlayerZoneCollect }
 
     public static double collectSlowSpeed = 0.75;
 
@@ -77,6 +77,7 @@ public class ConfigurableAutonomous extends OpMode {
     private ButtonReader shootCloseZoneButtonReader, shootFarZoneButtonReader;
     private ButtonReader collectCloseSetButtonReader, collectMiddleSetButtonReader, collectFarSetButtonReader;
     private ButtonReader gateCollectButtonReader;
+    private ButtonReader openGateButtonReader, humanPlayerZoneCollectButtonReader;
     private ButtonReader undoButtonReader, confirmButtonReader;
 
 
@@ -251,6 +252,20 @@ public class ConfigurableAutonomous extends OpMode {
     }
 
 
+
+
+
+
+    @Override
+    public void stop(){
+        rConstants.FieldConstants.autonomousEndPose = new Pose(follower.getPose().getX(), follower.getPose().getY(), follower.getPose().getHeading());
+    }
+
+
+
+
+
+
     private void SpindexerManaging(){
         if(spindexerSubsystem.getSpindexerState() == SpindexerSubsystem.SpindexerState.Shooting
                 || intakeSubsystem.getState() != IntakeSubsystem.IntakeState.Intaking
@@ -285,6 +300,8 @@ public class ConfigurableAutonomous extends OpMode {
         collectMiddleSetButtonReader    = new ButtonReader(gamepad1EX, rConstants.GamePadControls.collectMiddleSetMapping);
         collectFarSetButtonReader       = new ButtonReader(gamepad1EX, rConstants.GamePadControls.collectFarSetMapping);
         gateCollectButtonReader         = new ButtonReader(gamepad1EX, rConstants.GamePadControls.gateCollectMapping);
+        openGateButtonReader            = new ButtonReader(gamepad1EX, GamepadKeys.Button.LEFT_BUMPER);
+        humanPlayerZoneCollectButtonReader = new ButtonReader(gamepad1EX, GamepadKeys.Button.RIGHT_BUMPER);
         undoButtonReader                = new ButtonReader(gamepad1EX, GamepadKeys.Button.BACK);
         confirmButtonReader             = new ButtonReader(gamepad1EX, GamepadKeys.Button.START);
     }
@@ -295,6 +312,7 @@ public class ConfigurableAutonomous extends OpMode {
         shootCloseZoneButtonReader.readValue();      shootFarZoneButtonReader.readValue();
         collectCloseSetButtonReader.readValue();     collectMiddleSetButtonReader.readValue();
         collectFarSetButtonReader.readValue();       gateCollectButtonReader.readValue();
+        openGateButtonReader.readValue();            humanPlayerZoneCollectButtonReader.readValue();
         undoButtonReader.readValue();                confirmButtonReader.readValue();
     }
 
@@ -328,6 +346,8 @@ public class ConfigurableAutonomous extends OpMode {
         if (collectCloseSetButtonReader.wasJustPressed()) actionQueue.add(ActionType.CollectCloseSet);
         if (collectMiddleSetButtonReader.wasJustPressed()) actionQueue.add(ActionType.CollectMiddleSet);
         if (collectFarSetButtonReader.wasJustPressed()) actionQueue.add(ActionType.CollectFarSet);
+        if (openGateButtonReader.wasJustPressed()) actionQueue.add(ActionType.OpenGate);
+        if (humanPlayerZoneCollectButtonReader.wasJustPressed()) actionQueue.add(ActionType.HumanPlayerZoneCollect);
 
         if (undoButtonReader.wasJustPressed() && actionQueue.size() > 1) actionQueue.remove(actionQueue.size() - 1);
         if (confirmButtonReader.wasJustPressed()) currentPhase = Phase.Confirming;
@@ -456,6 +476,32 @@ public class ConfigurableAutonomous extends OpMode {
                     commands.add(new FollowPathCommand(pose2, collectSlowSpeed ));
                     break;
                 }
+
+                case OpenGate: {
+                    Pose pose1 = isBlue
+                            ? rConstants.AutonomousPositionConstants.openGateBlueSidePose1
+                            : rConstants.AutonomousPositionConstants.openGateRedSidePose1;
+                    Pose pose2 = isBlue
+                            ? rConstants.AutonomousPositionConstants.openGateBlueSidePose2
+                            : rConstants.AutonomousPositionConstants.openGateRedSidePose2;
+                    commands.add(new FollowPathCommand(pose1));
+                    commands.add(new FollowPathCommand(pose2));
+                    break;
+                }
+
+                case HumanPlayerZoneCollect: {
+                    Pose pose1 = isBlue
+                            ? rConstants.AutonomousPositionConstants.humanPlayerZoneBlueSideCollectPose1
+                            : rConstants.AutonomousPositionConstants.humanPlayerZoneRedSideCollectPose1;
+                    Pose pose2 = isBlue
+                            ? rConstants.AutonomousPositionConstants.humanPlayerZoneBlueSideCollectPose2
+                            : rConstants.AutonomousPositionConstants.humanPlayerZoneRedSideCollectPose2;
+                    commands.add(new FollowPathCommand(pose1));
+                    commands.add(new InstantCommand(() -> intakeSubsystem.setState(IntakeSubsystem.IntakeState.Intaking)));
+                    new WaitCommand(350); //TODO: change thins to make the robot wait for longer before moving on
+                    commands.add(new FollowPathCommand(pose2, 0.65));
+                    break;
+                }
             }
         }
 
@@ -526,6 +572,8 @@ public class ConfigurableAutonomous extends OpMode {
                 telemetry.addLine("  [DPAD LEFT]  Collect Close Set");
                 telemetry.addLine("  [DPAD DOWN]  Collect Middle Set");
                 telemetry.addLine("  [DPAD RIGHT] Collect Far Set");
+                telemetry.addLine("  [LB]         Open Gate");
+                telemetry.addLine("  [RB]         Human Player Zone Collect");
                 telemetry.addLine("");
                 telemetry.addLine("  [BACK]   Undo Last Action");
                 telemetry.addLine("  [START]  Confirm & Lock In All Actions");
@@ -585,13 +633,15 @@ public class ConfigurableAutonomous extends OpMode {
 
     private String getActionName(ActionType action) {
         switch (action) {
-            case ShootCloseZone:    return "Shoot (Close)";
-            case ShootFarZone:      return "Shoot (Far)";
-            case GateCollect:       return "Gate Collect";
-            case CollectCloseSet:   return "Collect Close Set";
-            case CollectMiddleSet:  return "Collect Middle Set";
-            case CollectFarSet:     return "Collect Far Set";
-            default:                return action.name();
+            case ShootCloseZone:           return "Shoot (Close)";
+            case ShootFarZone:             return "Shoot (Far)";
+            case GateCollect:              return "Gate Collect";
+            case CollectCloseSet:          return "Collect Close Set";
+            case CollectMiddleSet:         return "Collect Middle Set";
+            case CollectFarSet:            return "Collect Far Set";
+            case OpenGate:                 return "Open Gate";
+            case HumanPlayerZoneCollect:   return "Human Player Zone Collect";
+            default:                       return action.name();
         }
     }
 }

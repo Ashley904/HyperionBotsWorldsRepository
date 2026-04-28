@@ -137,7 +137,7 @@ public class WorldsRebuildTeleOp extends OpMode {
 
 
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(rConstants.FieldConstants.startingPose);
+        follower.setStartingPose(rConstants.FieldConstants.autonomousEndPose);
 
 
 

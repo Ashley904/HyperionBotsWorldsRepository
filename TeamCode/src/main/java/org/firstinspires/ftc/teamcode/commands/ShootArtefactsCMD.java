@@ -29,7 +29,7 @@ public class ShootArtefactsCMD extends SequentialCommandGroup {
                         new SequentialCommandGroup(
                                 new InstantCommand(() ->  intakeSubsystem.setState(IntakeSubsystem.IntakeState.Idling)),
                                 new InitializeTransferCMD(robot),
-                                new WaitCommand(330),
+                                new WaitCommand(120),
 
                                 // 1st Shot
                                 new InstantCommand(() -> {
@@ -37,7 +37,7 @@ public class ShootArtefactsCMD extends SequentialCommandGroup {
                                     spindexerSubsystem.setSpindexerPosition(rConstants.SpindexerConstants.shootingPositions[0]);
                                 }),
                                 new WaitUntilCommand(() -> spindexerSubsystem.getPosition() >= shot1Trigger),
-                                new WaitCommand(205),
+                                new WaitCommand(110),
                                 new TransferCMD(robot, spindexerSubsystem, 1),
 
                                 // 2nd Shot

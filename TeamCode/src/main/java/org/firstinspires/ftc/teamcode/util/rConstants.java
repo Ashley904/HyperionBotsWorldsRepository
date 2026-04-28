@@ -16,6 +16,7 @@ public class rConstants {
 
 
         public static Pose startingPose = new Pose(72.0, 72.0);
+        public static Pose autonomousEndPose = new Pose(72.0, 72.0);
         public static Pose resetPose = new Pose(133.0, 72.0);
     }
 
@@ -247,7 +248,7 @@ public class rConstants {
 
 
         public static double maximumFlyWheelVelocity=2120;  // Retune these if needed
-        public static double velocityReachedTolerance=65.0;
+        public static double velocityReachedTolerance=200.0;
 
 
 
@@ -329,7 +330,7 @@ public class rConstants {
 
 
         public static long servoRiseTime = 115;
-        public static long servoHomingTime = 80;
+        public static long servoHomingTime = 60;
     }
 
 
@@ -410,16 +411,26 @@ public class rConstants {
         public static Pose scoreCloseZoneBlueSide = new Pose(68.0, 61.0, Math.toRadians(-135.5));
         public static Pose scoreFarZoneBlueSide = new Pose(127.0, 62.0, Math.toRadians(-157.0));
 
+
         public static Pose gateCollectBlueSide = new Pose(89.9, 21, Math.toRadians(-124.0));
+        public static Pose openGateBlueSidePose1 = new Pose(0.0, 0.0, Math.toRadians(0)); //TODO: Tune this (position the robot like 30cm away from the gate).
+        public static Pose openGateBlueSidePose2 = new Pose(0.0, 0.0, Math.toRadians(0)); //TODO: Tune this (position the robot on the gate to open it).
+
 
         public static Pose collectFirstSet1BlueSide = new Pose(63.5, 63.0, Math.toRadians(-90.0));
         public static Pose collectFirstSet2BlueSide = new Pose(63.5, 33.0, Math.toRadians(-90));
 
+
         public static Pose collectSecondSet1BlueSide = new Pose(89.1, 62.0, Math.toRadians(-90));
         public static Pose collectSecondSet2BlueSide = new Pose(89.1, 33.15, Math.toRadians(-90));
 
+
         public static Pose collectThirdSet1BlueSide = new Pose(109.0, 58.0, Math.toRadians(-90));
         public static Pose collectThirdSet2BlueSide = new Pose(109.0, 28.1, Math.toRadians(-90));
+
+
+        public static Pose humanPlayerZoneBlueSideCollectPose1 = new Pose(0.0, 0.0, Math.toRadians(0.0)); //TODO: Tune this(position the robot to face the human player zone or wherever you want to to collect)
+        public static Pose humanPlayerZoneBlueSideCollectPose2 = new Pose(0.0, 0.0, Math.toRadians(0.0)); //TODO: Tune This(position the robot in the position where the robot will drive to, to collect the balls)
 
 
 
@@ -432,15 +443,25 @@ public class rConstants {
         public static Pose scoreCloseZoneRedSide = new Pose(48.0, 90.0, Math.toRadians(136.0));
         public static Pose scoreFarZoneRedSide   = new Pose(124.0, 85.0, Math.toRadians(159.15));
 
+
         public static Pose gateCollectRedSide = new Pose(75.5, 131.0,  Math.toRadians(125.75));
+        public static Pose openGateRedSidePose1 = new Pose(0.0, 0.0, Math.toRadians(0)); //TODO: Tune this (position the robot like 30cm away from the gate).
+        public static Pose openGateRedSidePose2 = new Pose(0.0, 0.0, Math.toRadians(0)); //TODO: Tune this (position the robot on the gate to open it).
+
 
         public static Pose collectThirdSet1RedSide = new Pose(48, 100.0, Math.toRadians(90.0));
         public static Pose collectThirdSet2RedSide = new Pose(48, 129, Math.toRadians(90.0));
 
+
         public static Pose collectSecondSet1RedSide = new Pose(70, 100.0, Math.toRadians(90.0));
         public static Pose collectSecondSet2RedSide = new Pose(70, 137.15, Math.toRadians(90.0));
 
+
         public static Pose collectFirstSet1RedSide = new Pose(94.15, 100.0, Math.toRadians(90.0));
         public static Pose collectFirstSet2RedSide = new Pose(94.15, 135.15, Math.toRadians(90.0));
+
+
+        public static Pose humanPlayerZoneRedSideCollectPose1 = new Pose(0.0, 0.0, Math.toRadians(0.0)); //TODO: Tune this(position the robot to face the human player zone or wherever you want to to collect)
+        public static Pose humanPlayerZoneRedSideCollectPose2 = new Pose(0.0, 0.0, Math.toRadians(0.0)); //TODO: Tune This(position the robot in the position where the robot will drive to, to collect the balls)
     }
 }
